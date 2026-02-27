@@ -1,0 +1,138 @@
+---
+title: Root
+order: 2
+---
+
+import { DismissalDirectionDemo } from './dismissal-direction-demo'
+import { DisableDragDismissDemo } from './disable-drag-dismiss-demo'
+import Hero from '../../../components/hero.astro'
+
+# Root
+
+Contains all parts of the drawer.
+
+## API Reference
+
+| Prop                            | Type                                  | Default  |
+| ------------------------------- | ------------------------------------- | -------- |
+| `defaultOpen`                   | `boolean`                             | `false`  |
+| `open`                          | `boolean`                             | `-`      |
+| `onOpenChange`                  | `(open: boolean) => void`             | `-`      |
+| `dismissalDirection`            | `'up' \| 'down' \| 'left' \| 'right'` | `'down'` |
+| `disableDragDismiss`            | `boolean`                             | `false`  |
+| `dismissVelocityThreshold`      | `number`                              | `2000`   |
+| `dismissDistanceRatioThreshold` | `number`                              | `0.5`    |
+| `respectReducedMotion`          | `boolean`                             | `true`   |
+
+## Props
+
+### defaultOpen
+
+Whether the drawer is open by default in uncontrolled mode. This is used when you want the drawer to start open without managing the state yourself.
+
+```tsx
+<Drawer.Root defaultOpen={true}>{/* Drawer starts open */}</Drawer.Root>
+```
+
+### open
+
+Whether the drawer is open in controlled mode. Must be used in conjunction with `onOpenChange` to fully control the drawer's state.
+
+```tsx
+const [isOpen, setIsOpen] = useState(false)
+
+<Drawer.Root open={isOpen} onOpenChange={setIsOpen}>
+  {/* Drawer state is controlled by parent */}
+</Drawer.Root>
+```
+
+### onOpenChange
+
+Callback fired when the open state changes, either from user interaction or programmatic changes. Receives the new open state as a boolean.
+
+```tsx
+<Drawer.Root
+  onOpenChange={(open) => {
+    console.log('Drawer is now:', open ? 'open' : 'closed')
+  }}
+>
+  {/* Your drawer content */}
+</Drawer.Root>
+```
+
+### dismissalDirection
+
+Controls the direction in which users can drag to dismiss the drawer.
+
+```tsx
+<Drawer.Root dismissalDirection='up'>{/* Drawer content */}</Drawer.Root>
+```
+
+Set this based on where your drawer appears:
+
+- `'down'` (default) - for drawers that slide up from the bottom
+- `'up'` - for drawers that slide down from the top
+- `'left'` - for drawers that slide in from the right
+- `'right'` - for drawers that slide in from the left
+
+**Interactive Demo:**
+
+<div class='my-6 overflow-hidden rounded-lg border border-brand-6'>
+  <Hero class='border-0 rounded-none'>
+    <DismissalDirectionDemo client:load />
+  </Hero>
+</div>
+
+### disableDragDismiss
+
+Prevents users from dismissing the drawer by dragging. Useful for critical interactions where you want to force explicit confirmation.
+
+```tsx
+<Drawer.Root disableDragDismiss={true}>
+  {/* Users must click the close button */}
+</Drawer.Root>
+```
+
+**Interactive Demo:**
+
+<div class='my-6 overflow-hidden rounded-lg border border-brand-6'>
+  <Hero class='border-0 rounded-none'>
+    <DisableDragDismissDemo client:load />
+  </Hero>
+</div>
+
+### dismissVelocityThreshold
+
+Velocity threshold in pixels per second required to trigger a dismiss when the user releases the drag. Higher values require faster swipes to close the drawer.
+
+```tsx
+<Drawer.Root dismissVelocityThreshold={3000}>
+  {/* Requires faster swipe to dismiss */}
+</Drawer.Root>
+```
+
+This is useful for preventing accidental dismissals. The default value is `2000` (2000 pixels per second).
+
+### dismissDistanceRatioThreshold
+
+Distance ratio threshold (0-1) of drawer height/width that must be dragged to trigger a dismiss. For example, `0.5` means dragging halfway will close the drawer.
+
+```tsx
+<Drawer.Root dismissDistanceRatioThreshold={0.3}>
+  {/* Drawer closes after dragging 30% of its size */}
+</Drawer.Root>
+```
+
+Lower values make it easier to dismiss, while higher values require dragging further. The default value is `0.5` (50%).
+
+### respectReducedMotion
+
+Whether to respect the user's `prefers-reduced-motion` system preference. When `true` and the user prefers reduced motion, animations will be disabled for better accessibility.
+
+```tsx
+<Drawer.Root respectReducedMotion={false}>
+  {/* Animations always play, regardless of user preference */}
+</Drawer.Root>
+```
+
+It's recommended to keep this `true` (the default) to respect user accessibility preferences.

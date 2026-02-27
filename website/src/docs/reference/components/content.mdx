@@ -1,0 +1,114 @@
+---
+title: Content
+order: 6
+---
+
+# Content
+
+Contains the content to be rendered in the drawer.
+
+## API Reference
+
+| Prop                   | Type                                                            | Default |
+| ---------------------- | --------------------------------------------------------------- | ------- |
+| `asChild`              | `boolean`                                                       | `false` |
+| `onOpenAutoFocus`      | `(event: Event) => void`                                        | `-`     |
+| `onCloseAutoFocus`     | `(event: Event) => void`                                        | `-`     |
+| `onEscapeKeyDown`      | `(event: KeyboardEvent) => void`                                | `-`     |
+| `onPointerDownOutside` | `(event: PointerDownOutsideEvent) => void`                      | `-`     |
+| `onInteractOutside`    | `(event: PointerDownOutsideEvent \| FocusOutsideEvent) => void` | `-`     |
+
+## Radix UI Integration
+
+This component extends [Radix UI Dialog.Content](https://www.radix-ui.com/primitives/docs/components/dialog#content) and inherits all its props except `forceMount`.
+
+## Data Attributes
+
+| Attribute      | Values               |
+| -------------- | -------------------- |
+| `[data-state]` | `"open" \| "closed"` |
+
+## Props
+
+### asChild
+
+Change the default rendered element for the one passed as a child, merging their props and behavior.
+
+```tsx
+<Drawer.Content asChild>
+  <article className='custom-content'>{/* ... */}</article>
+</Drawer.Content>
+```
+
+### onOpenAutoFocus
+
+Event handler called when focus moves into the component after opening. It can be prevented by calling `event.preventDefault`.
+
+```tsx
+<Drawer.Content
+  onOpenAutoFocus={(event) => {
+    event.preventDefault()
+    // Focus a specific element instead
+  }}
+>
+  {/* ... */}
+</Drawer.Content>
+```
+
+### onCloseAutoFocus
+
+Event handler called when focus moves back to the trigger after closing. It can be prevented by calling `event.preventDefault`.
+
+```tsx
+<Drawer.Content
+  onCloseAutoFocus={(event) => {
+    event.preventDefault()
+  }}
+>
+  {/* ... */}
+</Drawer.Content>
+```
+
+### onEscapeKeyDown
+
+Event handler called when the escape key is pressed. It can be prevented by calling `event.preventDefault`.
+
+```tsx
+<Drawer.Content
+  onEscapeKeyDown={(event) => {
+    event.preventDefault()
+    // Prevent closing on escape
+  }}
+>
+  {/* ... */}
+</Drawer.Content>
+```
+
+### onPointerDownOutside
+
+Event handler called when a pointer event occurs outside the bounds of the component. It can be prevented by calling `event.preventDefault`.
+
+```tsx
+<Drawer.Content
+  onPointerDownOutside={(event) => {
+    event.preventDefault()
+    // Prevent closing when clicking outside
+  }}
+>
+  {/* ... */}
+</Drawer.Content>
+```
+
+### onInteractOutside
+
+Event handler called when an interaction (pointer or focus event) happens outside the bounds of the component. It can be prevented by calling `event.preventDefault`.
+
+```tsx
+<Drawer.Content
+  onInteractOutside={(event) => {
+    event.preventDefault()
+  }}
+>
+  {/* ... */}
+</Drawer.Content>
+```

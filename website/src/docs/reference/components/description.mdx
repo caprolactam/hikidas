@@ -1,0 +1,48 @@
+---
+title: Description
+order: 8
+---
+
+# Description
+
+An optional accessible description to be announced when the drawer is opened.
+
+## API Reference
+
+| Prop      | Type      | Default |
+| --------- | --------- | ------- |
+| `asChild` | `boolean` | `false` |
+
+## Radix UI Integration
+
+This component extends [Radix UI Dialog.Description](https://www.radix-ui.com/primitives/docs/components/dialog#description) and inherits all its props.
+
+## Props
+
+### asChild
+
+Change the default rendered element for the one passed as a child, merging their props and behavior.
+
+```tsx
+<Drawer.Description asChild>
+  <p className='custom-description'>
+    Manage your account settings and preferences
+  </p>
+</Drawer.Description>
+```
+
+## Accessibility
+
+The description is automatically associated with the drawer content via `aria-describedby`. This provides additional context to screen reader users when the drawer opens.
+
+```tsx
+<Drawer.Content>
+  <Drawer.Title>Account Settings</Drawer.Title>
+  <Drawer.Description>
+    Manage your account settings, privacy preferences, and notification options
+  </Drawer.Description>
+  {/* ... */}
+</Drawer.Content>
+```
+
+While the description is optional, it's recommended to include one to provide better context for accessibility.

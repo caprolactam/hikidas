@@ -1,0 +1,22 @@
+---
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+
+const currentYear = new Date().getFullYear();
+---
+<footer class:list={['flex h-12 items-center gap-4', className]}>
+  <div class="inline-flex gap-2 text-[15px] leading-relaxed font-medium text-brand-11">
+    {`© ${currentYear}`}
+    <a
+      href="https://github.com/caprolactam"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="underline-offset-2 hover:underline"
+    >
+      caprolactam
+    </a>
+  </div>
+</footer>

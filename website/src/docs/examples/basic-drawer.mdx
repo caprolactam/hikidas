@@ -1,0 +1,18 @@
+---
+title: Basic Drawer
+description: Simple drawer with trigger button, overlay, and content.
+---
+
+# Basic Drawer
+
+import Hero from '../../components/hero.astro'
+import Code from '../../components/code.astro'
+import { BasicDrawer } from './basic-drawer.tsx'
+import basicDrawerCode from './basic-drawer?raw'
+
+The most basic drawer setup with a trigger button, overlay backdrop, and content area.
+
+<Hero>
+  <BasicDrawer client:load />
+</Hero>
+<Code code={basicDrawerCode} lang='tsx' />

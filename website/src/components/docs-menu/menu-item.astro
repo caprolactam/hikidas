@@ -1,0 +1,58 @@
+---
+import type { DocsMenuItem } from '../../modules/docs';
+
+interface Props {
+  item: DocsMenuItem
+  currentPathname: string
+  level?: number
+}
+
+const { item, currentPathname, level = 0 } = Astro.props
+const isActive = item.url === currentPathname
+const hasChildren = item.children.length > 0
+
+// レベルごとのインデント計算
+const labelIndent = level * 1 // rem単位
+const linkIndent = level * 1 // rem単位
+const fontSizeClass = level === 0 ? '' : level === 1 ? 'text-sm' : 'text-sm'
+---
+
+<li style={`--label-indent: ${labelIndent}rem; --link-indent: ${linkIndent}rem;`}>
+  {item.url ? (
+    <a
+      href={item.url}
+      class:list={[
+        "relative flex h-10 items-center rounded-md hover:bg-brand-4 active:bg-brand-5",
+        level === 0 ? 'px-4' : 'pl-[var(--link-indent)]',
+        fontSizeClass,
+        isActive && 'bg-brand-3'
+      ]}
+    >
+      <span
+        class:list={[
+          'absolute inset-y-1/2 left-0 h-4 w-0.75 -translate-y-1/2 rounded-full bg-link',
+          isActive ? 'opacity-100 indicator-active' : 'opacity-0',
+        ]}
+        aria-hidden="true"
+      />
+      {item.attributes.title}
+    </a>
+  ) : (
+    <span 
+      class:list={[
+        "flex h-10 items-center font-bold",
+        level === 0 ? 'px-1' : 'pl-[var(--label-indent)]',
+        fontSizeClass
+      ]}
+    >
+      {item.attributes.title}
+    </span>
+  )}
+  {hasChildren && (
+    <ul>
+      {item.children.map(child => (
+        <Astro.self item={child} currentPathname={currentPathname} level={level + 1} />
+      ))}
+    </ul>
+  )}
+</li>

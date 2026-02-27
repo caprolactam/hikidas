@@ -1,0 +1,104 @@
+---
+title: Overview
+description: Complete API documentation for Hikidash drawer components.
+order: 1
+---
+
+# Overview
+
+Complete reference for Hikidas components, props, and types.
+
+## Anatomy
+
+```tsx nocollapse
+import { Drawer } from 'hikidas/radix-ui'
+
+export function DrawerDemo() {
+  return (
+    <Drawer.Root>
+      <Drawer.Trigger />
+      <Drawer.Portal>
+        <Drawer.Overlay />
+        <Drawer.Content>
+          <Drawer.Title />
+          <Drawer.Description />
+          <Drawer.Close />
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
+  )
+}
+```
+
+## API Reference
+
+### Root
+
+Contains all parts of the drawer.
+
+| Prop                            | Type                                  | Default  |
+| ------------------------------- | ------------------------------------- | -------- |
+| `open`                          | `boolean`                             | `-`      |
+| `defaultOpen`                   | `boolean`                             | `-`      |
+| `onOpenChange`                  | `(open: boolean) => void`             | `-`      |
+| `dismissalDirection`            | `'up' \| 'down' \| 'left' \| 'right'` | `'down'` |
+| `disableDragDismiss`            | `boolean`                             | `false`  |
+| `dismissDistanceRatioThreshold` | `number`                              | `0.5`    |
+| `dismissVelocityThreshold`      | `number`                              | `2000`   |
+| `respectReducedMotion`          | `boolean`                             | `true`   |
+
+### Trigger
+
+Use this to create a button or link that opens the drawer for users.
+
+| Prop      | Type      | Default |
+| --------- | --------- | ------- |
+| `asChild` | `boolean` | `false` |
+
+### Portal
+
+Ensures the drawer appears above all other content on the page.
+
+| Prop        | Type          | Default         |
+| ----------- | ------------- | --------------- |
+| `container` | `HTMLElement` | `document.body` |
+
+### Overlay
+
+Adds a backdrop behind the drawer to dim the main content and focus user attention.
+
+| Prop      | Type      | Default |
+| --------- | --------- | ------- |
+| `asChild` | `boolean` | `false` |
+
+### Content
+
+Place your drawer content here, such as forms, menus, or detailed information.
+
+| Prop      | Type      | Default |
+| --------- | --------- | ------- |
+| `asChild` | `boolean` | `false` |
+
+### Title
+
+Provides a heading for the drawer that describes its purpose to all users.
+
+| Prop      | Type      | Default |
+| --------- | --------- | ------- |
+| `asChild` | `boolean` | `false` |
+
+### Description
+
+Adds optional explanatory text that gives users more context about the drawer's content.
+
+| Prop      | Type      | Default |
+| --------- | --------- | ------- |
+| `asChild` | `boolean` | `false` |
+
+### Close
+
+Creates a close button or icon that allows users to dismiss the drawer.
+
+| Prop      | Type      | Default |
+| --------- | --------- | ------- |
+| `asChild` | `boolean` | `false` |

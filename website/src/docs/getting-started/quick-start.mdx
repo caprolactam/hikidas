@@ -1,0 +1,98 @@
+---
+title: Quick Start
+description: Install and set up Hikidas in your project.
+order: 1
+---
+
+import { DrawerDemo as RadixuiDemo } from './quick-start'
+import Hero from '../../components/hero.astro'
+import radixuiSourceCode from './quick-start?raw'
+import cssCode from './drawer.css?raw'
+import Code from '../../components/code.astro'
+import CodeTabsSimple from '../../components/code-tabs.astro'
+
+# Quick Start
+
+Build your first drawer in a few minutes. This page shows the minimum setup from package selection to a working demo.
+
+## 1. Install the Package
+
+Hikidas wraps existing UI libraries to provide drawer functionality. Install both Hikidas and your chosen UI library. Note that the underlying UI library must be installed separately.
+
+<Code lang='bash' code={`npm install hikidas radix-ui`} />
+
+## 2. Import the Parts
+
+Import the Drawer component from your chosen UI library adapter. All components follow a composable pattern.
+
+```jsx filename=drawer.jsx
+import { Drawer } from 'hikidas/radix-ui'
+import React from 'react'
+
+export function DrawerDemo() {
+  return (
+    <Drawer.Root>
+      <Drawer.Trigger>Open</Drawer.Trigger>
+      <Drawer.Portal>
+        <Drawer.Overlay />
+        <Drawer.Content>
+          <Drawer.Close>Close</Drawer.Close>
+          <Drawer.Title>Headline</Drawer.Title>
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
+  )
+}
+```
+
+## 3. Add Styles
+
+Use your own styles. Hikidas is headless, so you control the look and layout.
+
+```jsx filename=drawer.jsx add=3,8
+import { Drawer } from 'hikidas/radix-ui'
+import React from 'react'
+import './drawer.css'
+
+export function DrawerDemo() {
+  return (
+    <Drawer.Root>
+      <Drawer.Trigger className='button'>Open</Drawer.Trigger>
+      <Drawer.Portal>
+        <Drawer.Overlay />
+        <Drawer.Content>
+          <Drawer.Close>Close</Drawer.Close>
+          <Drawer.Title>Headline</Drawer.Title>
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
+  )
+}
+```
+
+```css filename=drawer.css
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  border: 1px solid #d4d4d8;
+}
+```
+
+## Final Demo
+
+Here's the complete working example with all the parts assembled and styled.
+
+<div class='my-6 overflow-hidden rounded-lg border border-brand-6'>
+  <Hero class='border-0 rounded-none'>
+    <RadixuiDemo client:load />
+  </Hero>
+  <CodeTabsSimple
+    class='rounded-none border-0 border-t border-brand-6'
+    files={[
+      { filename: 'drawer.jsx', lang: 'jsx', code: radixuiSourceCode },
+      { filename: 'drawer.css', lang: 'css', code: cssCode },
+    ]}
+  />
+</div>

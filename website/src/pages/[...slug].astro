@@ -1,0 +1,90 @@
+---
+import { getCollection, render } from 'astro:content';
+import Sidebar from '../components/sidebar.astro';
+import Header from '../components/header.astro';
+import Menu from '../components/docs-menu/menu.astro';
+import TableOfContents from '../components/table-of-contents.astro';
+import{ getDocsMenu } from '../modules/docs';
+import '../app.css'
+
+export async function getStaticPaths() {
+  const posts = await getCollection('docs');
+  return posts
+    .map(post => ({
+      params: { slug: post.id },
+      props: { post, frontmatter: post.data },
+    }))
+    // Exclude documents that only define title and order for menu purposes
+    .filter(({ props }) => Boolean(props.post?.body));
+}
+
+const { post } = Astro.props
+const pathname = new URL(Astro.request.url).pathname;
+const normalizedPathname = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+
+const { Content, headings } = await render(post);
+const docsMenu = await getDocsMenu();
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="view-transition" content="same-origin" />
+    <link rel="preconnect" href="https://rsms.me/">
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+    <script is:inline>
+      (function() {
+        const saved = localStorage.getItem('theme');
+        if (saved === 'dark' || (!saved && matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+    <script is:inline>
+      document.addEventListener('DOMContentLoaded', () => {
+        const copyButtons = document.querySelectorAll('.code-copy-button');
+
+        copyButtons.forEach(button => {
+          button.addEventListener('click', async () => {
+            const code = button.getAttribute('data-code');
+            if (!code) return;
+
+            try {
+              await navigator.clipboard.writeText(code);
+
+              // Show check icon
+              const copyIcon = button.querySelector('.copy-icon');
+              const checkIcon = button.querySelector('.check-icon');
+
+              if (copyIcon && checkIcon) {
+                copyIcon.style.display = 'none';
+                checkIcon.style.display = 'block';
+
+                setTimeout(() => {
+                  copyIcon.style.display = 'block';
+                  checkIcon.style.display = 'none';
+                }, 2000);
+              }
+            } catch (err) {
+              console.error('Failed to copy code:', err);
+            }
+          });
+        });
+      });
+    </script>
+  </head>
+  <body class="bg-brand-1 text-brand-12 antialiased">
+    <Sidebar>
+      <Menu items={docsMenu} currentPathname={normalizedPathname} />
+    </Sidebar>
+    <div class="containter">
+      <Header />
+      <main class="docs-main pb-[33vh] pt-14">
+        <article class="docs-article prose prose-brand">
+          <Content />
+        </article>
+        <TableOfContents headings={headings} />
+      </main>
+    </div>
+  </body>
+</html>

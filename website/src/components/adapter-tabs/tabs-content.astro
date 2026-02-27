@@ -1,0 +1,16 @@
+---
+import {
+  TabsContent as TabsContentPrimitives,
+} from '../parts/tabs'
+import { type Adapters } from './adapters'
+
+interface Props {
+  value: Adapters
+  class?: string
+}
+
+const { value, class: className } = Astro.props
+---
+<TabsContentPrimitives value={value} class={className}>
+  <slot />
+</TabsContentPrimitives>

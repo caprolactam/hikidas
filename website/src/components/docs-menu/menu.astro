@@ -1,0 +1,63 @@
+---
+import type { DocsMenuItem } from '../../modules/docs';
+import MenuItem from './menu-item.astro';
+
+interface Props{
+  class?: string;
+  items: Array<DocsMenuItem>
+  currentPathname: string
+}
+
+const { class: className, items, currentPathname } = Astro.props
+---
+<nav class={className}>
+  <ul class="flex flex-col gap-0.5">
+    {items.map(item => (
+      <MenuItem item={item} currentPathname={currentPathname} />
+    ))}
+  </ul>
+</nav>
+<style>
+  /* Stabilize layout for reliable view transitions */
+  nav {
+    contain: layout style;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (view-transition-name: none) {
+      .indicator-active {
+        view-transition-name: active-indicator;
+      }
+
+      @view-transition {
+        navigation: auto;
+      }
+
+      ::view-transition-old(active-indicator),
+      ::view-transition-new(active-indicator) {
+        animation-duration: 0.25s;
+        animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+      }
+
+      ::view-transition-old(active-indicator) {
+        animation-name: fade-out;
+      }
+
+      ::view-transition-new(active-indicator) {
+        animation-name: fade-in;
+      }
+
+      @keyframes fade-out {
+        to {
+          opacity: 0;
+        }
+      }
+
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+        }
+      }
+    }
+  }
+</style>

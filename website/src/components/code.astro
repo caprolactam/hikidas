@@ -1,0 +1,112 @@
+---
+import { htmlEscape } from 'escape-goat'
+import type { Element as HElement } from 'hast'
+import { toHtml } from 'hast-util-to-html'
+import rangeParser from 'parse-numeric-range'
+import { codeToHast } from 'shiki'
+import { createCopyButton } from '../../scripts/create-copy-button.ts'
+
+interface Props {
+	/** The code to highlight. Required. */
+	code: string
+	/**
+	 * The language of your code.
+	 * @default "txt"
+	 */
+	lang?: string
+	/**
+	 * Display a filename above the code block.
+	 */
+	filename?: string
+	/**
+	 * Line ranges to highlight.
+	 * @example "1-3,5"
+	 */
+	lines?: string
+	/**
+	 * Line ranges to mark as added (diff).
+	 * @example "1,3"
+	 */
+	add?: string
+	/**
+	 * Line ranges to mark as removed (diff).
+	 * @example "2,4-6"
+	 */
+	remove?: string
+	/**
+	 * Starting line number.
+	 * @default 1
+	 */
+	start?: number
+}
+
+const {
+	code,
+	lang = 'txt',
+	filename,
+	lines,
+	add,
+	remove,
+	start = 1,
+} = Astro.props
+
+// title takes precedence over filename
+const displayTitle = filename
+
+const highlightLines = lines ? rangeParser(lines) : []
+const addedLines = add ? rangeParser(add) : []
+const removedLines = remove ? rangeParser(remove) : []
+
+const highlighted = await codeToHast(code.trimEnd(), {
+	themes: {
+		light: 'github-light',
+		dark: 'github-dark',
+	},
+	lang,
+	transformers: [
+		{
+			pre(node) {
+				if (addedLines.length || removedLines.length) {
+					node.properties['data-diff'] = true
+				}
+				if (displayTitle) {
+					node.properties['data-filename'] = displayTitle
+				}
+			},
+			line(node, line) {
+				node.properties['data-line-number'] = line + start - 1
+
+				if (highlightLines.includes(line)) {
+					node.properties['data-highlight'] = true
+				}
+
+				if (addedLines.length || removedLines.length) {
+					if (addedLines.includes(line)) {
+						node.properties['data-inserted'] = true
+					} else if (removedLines.includes(line)) {
+						node.properties['data-deleted'] = true
+					}
+				}
+			},
+		},
+	],
+})
+
+const pre = highlighted.children[0] as HElement
+const copyButton = createCopyButton(code.trimEnd())
+
+const wrapper: HElement = {
+	type: 'element',
+	tagName: 'div',
+	properties: {
+		dataLang: htmlEscape(lang),
+		className: ['md-prose'],
+	},
+	children: [pre, copyButton],
+}
+
+const html = toHtml(wrapper)
+---
+
+<Fragment set:html={html} />
+

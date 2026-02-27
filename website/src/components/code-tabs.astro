@@ -1,0 +1,135 @@
+---
+import Tabs from './parts/tabs/Tabs.astro'
+import TabsList from './parts/tabs/TabsList.astro'
+import TabsTrigger from './parts/tabs/TabsTrigger.astro'
+import TabsContent from './parts/tabs/TabsContent.astro'
+import Code from './code.astro'
+
+interface CodeFile {
+  filename: string
+  lang: string
+  code: string
+}
+
+interface Props {
+  files: CodeFile[]
+  defaultValue?: string
+  collapsible?: boolean
+  defaultExpanded?: boolean
+  class?: string
+}
+
+const { files, defaultValue, collapsible = true, defaultExpanded = false, class: className } = Astro.props
+const defaultTab = defaultValue || files[0]?.filename || 'file1'
+---
+
+<div
+  class:list={['code-tabs overflow-hidden rounded-lg', className]}
+  data-collapsible={collapsible}
+  data-expanded={defaultExpanded}
+>
+  <Tabs defaultValue={defaultTab} class="relative p-0">
+    <TabsList class="flex w-full justify-start items-center rounded-none bg-transparent p-0 border-0 border-b border-brand-6">
+      {files.map((file) => (
+        <TabsTrigger
+          value={file.filename}
+          class="relative grow-0 rounded-none border-0 bg-transparent px-4 py-2.5 text-sm text-brand-11 shadow-none transition-colors hover:text-brand-12 data-[state=active]:text-brand-12 data-[state=active]:bg-transparent data-[state=active]:shadow-none after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-transparent after:transition-colors data-[state=active]:after:bg-brand-12"
+        >
+          {file.filename}
+        </TabsTrigger>
+      ))}
+    </TabsList>
+
+    {files.map((file) => (
+      <TabsContent value={file.filename} class="m-0! focus-visible:outline-none">
+        <Code lang={file.lang} code={file.code} />
+      </TabsContent>
+    ))}
+  </Tabs>
+
+  {collapsible && (
+    <button
+      class="flex w-full items-center justify-center border-t border-brand-6 bg-transparent px-4 py-2 text-sm font-medium text-brand-11 transition-colors hover:bg-brand-2 hover:text-brand-12"
+      type="button"
+      data-expand-toggle
+    >
+      <span data-expand-text>Expand code</span>
+      <span class="hidden" data-collapse-text>Collapse code</span>
+    </button>
+  )}
+</div>
+
+<style>
+  /* コラプス: デフォルトは折りたたみ */
+  .code-tabs[data-collapsible='true'] :global([data-slot='tabs-content']) {
+    max-height: 400px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .code-tabs[data-expanded='true'] :global([data-slot='tabs-content']) {
+    max-height: none;
+  }
+
+  /* グラデーションオーバーレイ */
+  .code-tabs[data-collapsible='true'][data-expanded='false'] :global([data-slot='tabs-content'][data-state='active'])::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: linear-gradient(to bottom, transparent, var(--color-brand-1));
+    pointer-events: none;
+  }
+
+  /* Codeコンポーネント内のスタイルオーバーライド */
+  [data-slot='tabs-content'] :global(.md-prose) {
+    margin: 0;
+    border: none;
+    border-radius: 0;
+  }
+
+  [data-slot='tabs-content'] :global(pre) {
+    margin: 0;
+    border-radius: 0;
+    border: 0;
+  }
+
+  [data-slot='tabs-content'] :global(pre[data-filename])::before,
+  [data-slot='tabs-content'] :global(pre[data-filename])::after {
+    display: none;
+  }
+
+  /* トグルテキスト切り替え */
+  .code-tabs[data-expanded='true'] [data-expand-text] {
+    display: none;
+  }
+
+  .code-tabs[data-expanded='true'] [data-collapse-text] {
+    display: block;
+  }
+</style>
+
+<script>
+  function setupCodeTabs() {
+    document.querySelectorAll<HTMLElement>('.code-tabs[data-collapsible="true"]').forEach((wrapper) => {
+      const toggle = wrapper.querySelector<HTMLButtonElement>('[data-expand-toggle]')
+
+      if (!toggle) return
+
+      toggle.addEventListener('click', () => {
+        const isExpanded = wrapper.getAttribute('data-expanded') === 'true'
+        wrapper.setAttribute('data-expanded', String(!isExpanded))
+      })
+    })
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupCodeTabs)
+  } else {
+    setupCodeTabs()
+  }
+
+  document.addEventListener('astro:after-swap', setupCodeTabs)
+</script>

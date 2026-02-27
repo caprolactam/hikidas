@@ -1,0 +1,46 @@
+---
+title: Overlay
+order: 5
+---
+
+# Overlay
+
+A layer that covers the inert portion of the view when the drawer is open.
+
+## API Reference
+
+| Prop      | Type      | Default |
+| --------- | --------- | ------- |
+| `asChild` | `boolean` | `false` |
+
+## Radix UI Integration
+
+This component extends [Radix UI Dialog.Overlay](https://www.radix-ui.com/primitives/docs/components/dialog#overlay) and inherits all its props except `forceMount`.
+
+## Data Attributes
+
+| Attribute      | Values               |
+| -------------- | -------------------- |
+| `[data-state]` | `"open" \| "closed"` |
+
+## Props
+
+### asChild
+
+Change the default rendered element for the one passed as a child, merging their props and behavior.
+
+```tsx
+<Drawer.Overlay asChild>
+  <div className='custom-overlay' />
+</Drawer.Overlay>
+```
+
+This is useful when you want to use your own element instead of the default div element.
+
+## Styling
+
+The overlay typically uses a semi-transparent background to dim the content behind the drawer:
+
+```tsx
+<Drawer.Overlay className='fixed inset-0 bg-black/60' />
+```

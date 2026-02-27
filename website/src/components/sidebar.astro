@@ -1,0 +1,9 @@
+---
+import Brand from './brand.astro'
+---
+<aside class="fixed inset-y-0 left-0 hidden flex-col overflow-x-hidden overflow-y-auto overscroll-contain bg-sidebar px-(--space-base) lg:flex lg:w-(--sidebar-width) xl:w-[calc((100%-(var(--max-screen-width)-calc(var(--space-base)*2)))/2+var(--sidebar-width)-var(--space-base))] xl:pl-[max(var(--space-base),calc((100%-var(--max-screen-width))/2))]">
+  <div class="sticky top-0 px-1 z-45 flex h-(--header-height) shrink-0 items-center mb-(--space-base)">
+    <Brand />
+  </div>
+  <slot />
+</aside>

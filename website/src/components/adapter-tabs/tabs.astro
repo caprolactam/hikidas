@@ -1,0 +1,20 @@
+---
+import {
+  Tabs as TabsPrimitives,
+  TabsTrigger,
+  TabsList,
+} from '../parts/tabs'
+import { adapters, type Adapters } from './adapters'
+export { TabsContent } from '../parts/tabs'
+
+const DEFAULT_ADAPTER: Adapters = 'radix-ui'
+const SNCY_KEY = 'drawer-adapter'
+---
+<TabsPrimitives defaultValue={DEFAULT_ADAPTER} syncKey={SNCY_KEY}>
+  <TabsList>
+    {Object.entries(adapters).map(([value, label]) => (
+      <TabsTrigger value={value}>{label}</TabsTrigger>
+    ))}
+  </TabsList>
+  <slot />
+</TabsPrimitives>

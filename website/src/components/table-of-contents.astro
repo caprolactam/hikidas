@@ -1,0 +1,72 @@
+---
+import type { MarkdownHeading } from 'astro';
+
+interface Props {
+  headings: MarkdownHeading[];
+}
+
+const { headings } = Astro.props;
+const tocHeadings = headings.filter(h => h.depth >= 2 && h.depth <= 3);
+---
+
+{tocHeadings.length > 0 && (
+  <nav class="hidden xl:block w-64 shrink-0" aria-label="Table of contents">
+    <div class="sticky top-(--space-xl)">
+      <div class="text-[0.8125rem] font-medium text-brand-12 mb-3">On this page</div>
+      <ul class="list-none p-0 m-0 flex flex-col gap-1 border-l border-brand-6">
+        {tocHeadings.map((heading) => (
+          <li class={heading.depth === 3 ? 'pl-6' : 'pl-3'}>
+            <a
+              href={`#${heading.slug}`}
+              class="block text-[0.8125rem] leading-relaxed text-brand-11 no-underline hover:text-brand-12 aria-[current]:text-brand-12"
+            >
+              {heading.text}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </nav>
+)}
+
+<script>
+  function initTocHighlight() {
+    const toc = document.querySelector('nav[aria-label="Table of contents"]');
+    if (!toc) return;
+
+    const links = [...toc.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')];
+    if (links.length === 0) return;
+
+    const headings = links
+      .map((link) => ({
+        link,
+        target: document.getElementById(link.hash.slice(1)),
+      }))
+      .filter((h): h is { link: HTMLAnchorElement; target: HTMLElement } =>
+        h.target !== null
+      );
+
+    function update() {
+      let current: HTMLAnchorElement | null = null;
+
+      for (const { link, target } of headings) {
+        if (target.getBoundingClientRect().top <= 57) {
+          current = link;
+        }
+      }
+
+      for (const { link } of headings) {
+        if (link === current) {
+          link.setAttribute('aria-current', 'true');
+        } else {
+          link.removeAttribute('aria-current');
+        }
+      }
+    }
+
+    window.addEventListener('scroll', update, { passive: true });
+    update();
+  }
+
+  initTocHighlight();
+</script>

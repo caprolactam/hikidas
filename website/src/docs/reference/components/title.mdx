@@ -1,0 +1,44 @@
+---
+title: Title
+order: 7
+---
+
+# Title
+
+An accessible title to be announced when the drawer is opened.
+
+## API Reference
+
+| Prop      | Type      | Default |
+| --------- | --------- | ------- |
+| `asChild` | `boolean` | `false` |
+
+## Radix UI Integration
+
+This component extends [Radix UI Dialog.Title](https://www.radix-ui.com/primitives/docs/components/dialog#title) and inherits all its props.
+
+## Props
+
+### asChild
+
+Change the default rendered element for the one passed as a child, merging their props and behavior.
+
+```tsx
+<Drawer.Title asChild>
+  <h2 className='custom-title'>Drawer Title</h2>
+</Drawer.Title>
+```
+
+## Accessibility
+
+The title is automatically associated with the drawer content via `aria-labelledby`. This ensures screen readers announce the drawer's purpose when it opens.
+
+```tsx
+<Drawer.Content>
+  <Drawer.Title>Account Settings</Drawer.Title>
+  <Drawer.Description>
+    Manage your account settings and preferences
+  </Drawer.Description>
+  {/* ... */}
+</Drawer.Content>
+```

@@ -1,0 +1,33 @@
+---
+title: Portal
+order: 4
+---
+
+# Portal
+
+When used, portals your overlay and content parts into the body (or a custom container).
+
+## API Reference
+
+| Prop        | Type          | Default         |
+| ----------- | ------------- | --------------- |
+| `container` | `HTMLElement` | `document.body` |
+
+## Radix UI Integration
+
+This component extends [Radix UI Dialog.Portal](https://www.radix-ui.com/primitives/docs/components/dialog#portal) and inherits all its props except `forceMount`.
+
+## Props
+
+### container
+
+Specify a container element to portal the content into.
+
+```tsx
+<Drawer.Portal container={document.getElementById('drawer-container')}>
+  <Drawer.Overlay />
+  <Drawer.Content>{/* ... */}</Drawer.Content>
+</Drawer.Portal>
+```
+
+By default, portals into `document.body`. This is useful when you need to render the drawer within a specific DOM element.

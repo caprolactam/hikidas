@@ -1,0 +1,38 @@
+---
+title: Trigger
+order: 3
+---
+
+# Trigger
+
+The button that opens the drawer when clicked.
+
+## API Reference
+
+| Prop      | Type      | Default |
+| --------- | --------- | ------- |
+| `asChild` | `boolean` | `false` |
+
+## Radix UI Integration
+
+This component extends [Radix UI Dialog.Trigger](https://www.radix-ui.com/primitives/docs/components/dialog#trigger) and inherits all its props.
+
+## Data Attributes
+
+| Attribute      | Values               |
+| -------------- | -------------------- |
+| `[data-state]` | `"open" \| "closed"` |
+
+## Props
+
+### asChild
+
+Change the default rendered element for the one passed as a child, merging their props and behavior.
+
+```tsx
+<Drawer.Trigger asChild>
+  <button className='custom-button'>Open Drawer</button>
+</Drawer.Trigger>
+```
+
+This is useful when you want to use your own button component instead of the default button element.
