@@ -93,8 +93,13 @@ export function DrawerPopup({
 export interface DrawerTriggerProps extends DialogTriggerProps {}
 export const DrawerTrigger = Dialog.Trigger
 
-export interface DrawerPortalProps extends DialogPortalProps {}
-export const DrawerPortal = Dialog.Portal
+export interface DrawerPortalProps extends Omit<
+  DialogPortalProps,
+  'keepMounted'
+> {}
+export function DrawerPortal(props: DrawerPortalProps) {
+  return <Dialog.Portal {...props} />
+}
 
 export interface DrawerViewportProps extends DialogViewportProps {}
 export const DrawerViewport = Dialog.Viewport

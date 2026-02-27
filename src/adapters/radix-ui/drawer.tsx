@@ -99,8 +99,9 @@ export interface DrawerPortalProps extends Omit<
   React.ComponentPropsWithRef<typeof Dialog.Portal>,
   'forceMount'
 > {}
-
-export const DrawerPortal = Dialog.Portal
+export function DrawerPortal(props: DrawerPortalProps) {
+  return <Dialog.Portal {...props} />
+}
 
 export interface DrawerCloseProps extends React.ComponentPropsWithRef<
   typeof Dialog.Close
