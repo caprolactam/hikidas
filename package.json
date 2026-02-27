@@ -1,9 +1,23 @@
 {
   "name": "hikidas",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Drawer component for React with support for multiple UI libraries.",
+  "keywords": [
+    "accessible",
+    "animation",
+    "base-ui",
+    "dialog",
+    "drawer",
+    "headlessui",
+    "radix-ui",
+    "react"
+  ],
   "license": "MIT",
   "author": "caprolactam <caprolactam113@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/caprolactam/hikidas.git"
+  },
   "files": [
     "dist",
     "README.md"
@@ -41,6 +55,7 @@
     "storybook:preview": "vite preview --outDir storybook-static",
     "test": "vitest --project=core",
     "e2e": "npx playwright test",
+    "prepublishOnly": "pnpm build",
     "size-check": "node size-check.js",
     "dep:dot": "madge --ts-config tsconfig.json --extensions ts,tsx --exclude \"^.*\\.test.(ts|tsx)$\"  src --dot > .madge/deps.dot",
     "dep:svg": "mkdirp .madge &&  npm run dep:dot && dot -Tsvg .madge/deps.dot -o .madge/deps.svg"
@@ -101,9 +116,6 @@
     "radix-ui": {
       "optional": true
     }
-  },
-  "engines": {
-    "node": ">=24"
   },
   "packageManager": "pnpm@10.30.3"
 }
