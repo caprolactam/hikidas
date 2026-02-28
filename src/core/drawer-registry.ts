@@ -137,7 +137,7 @@ export class DrawerRegistry {
         )
         return () => {}
       }
-      if (parentId !== null && !this.#entries.has(parentId)) {
+      if (parentId && !this.#entries.has(parentId)) {
         console.warn(
           `[DrawerRegistry] Parent drawer "${parentId}" is not registered. Drawer "${id}" will be treated as a root until the parent is registered.`,
         )
@@ -216,6 +216,15 @@ export class DrawerRegistry {
     const descendants: DrawerNodeView[] = []
     this.#collectDescendants(id, descendants)
     return descendants
+  }
+
+  #collectDescendants(id: DrawerId, result: DrawerNodeView[]): void {
+    for (const entry of this.#entries.values()) {
+      if (entry.parentId === id) {
+        result.push(this.#toView(entry))
+        this.#collectDescendants(entry.id, result)
+      }
+    }
   }
 
   getAncestors(id: DrawerId): DrawerNodeView[] {
@@ -298,11 +307,10 @@ export class DrawerRegistry {
     return this.#entries.size
   }
 
-  // ── Flat list (article's toFlat()) ───────────────────────
+  // ── Flat list  ───────────────────────
 
   /**
-   * Returns all nodes in depth-first order, mirroring the article's `toFlat()` approach:
-   * "木構造を、一度深さ情報と親idを付与したデータに変換する"
+   * Returns all nodes in depth-first order
    */
   toFlat(): DrawerNodeView[] {
     const result: DrawerNodeView[] = []
@@ -504,7 +512,6 @@ export class DrawerRegistry {
     let currentId: DrawerId = id
 
     // Follow the chain of nesting-active children downward
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       let openChild: DrawerNodeEntry | null = null
       for (const entry of this.#entries.values()) {
@@ -573,15 +580,6 @@ export class DrawerRegistry {
     for (const child of this.#entries.values()) {
       if (child.parentId === entry.id) {
         this.#walkDepthFirst(child, depth + 1, result)
-      }
-    }
-  }
-
-  #collectDescendants(id: DrawerId, result: DrawerNodeView[]): void {
-    for (const entry of this.#entries.values()) {
-      if (entry.parentId === id) {
-        result.push(this.#toView(entry))
-        this.#collectDescendants(entry.id, result)
       }
     }
   }
