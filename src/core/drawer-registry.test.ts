@@ -553,4 +553,441 @@ describe('DrawerRegistry', () => {
       expect(listener).not.toHaveBeenCalled()
     })
   })
+
+  // ── Nesting state ──────────────────────────────────────
+
+  describe('nesting state', () => {
+    /**
+     * Build a two-level tree: root > child.
+     * Both start closed.
+     */
+    function buildNestingPair() {
+      const manager = new DrawerRegistry()
+      const machines = {
+        root: createMachine(true), // root starts open (Idle)
+        child: createMachine(false), // child starts closed
+      }
+
+      manager.register({
+        id: 'root',
+        parentId: null,
+        machine: machines.root,
+      })
+      manager.register({
+        id: 'child',
+        parentId: 'root',
+        machine: machines.child,
+      })
+
+      return { manager, machines }
+    }
+
+    /**
+     * Build a three-level tree: root > child > grandchild.
+     */
+    function buildNestingChain() {
+      const manager = new DrawerRegistry()
+      const machines = {
+        root: createMachine(true),
+        child: createMachine(false),
+        grandchild: createMachine(false),
+      }
+
+      manager.register({
+        id: 'root',
+        parentId: null,
+        machine: machines.root,
+      })
+      manager.register({
+        id: 'child',
+        parentId: 'root',
+        machine: machines.child,
+      })
+      manager.register({
+        id: 'grandchild',
+        parentId: 'child',
+        machine: machines.grandchild,
+      })
+
+      return { manager, machines }
+    }
+
+    test('initial nesting state is foreground (depth 0)', () => {
+      const { manager } = buildNestingPair()
+
+      const rootState = manager.getNestingState('root')
+      expect(rootState.nestingDepth).toBe(0)
+      expect(rootState.targetNestingDepth).toBe(0)
+
+      const childState = manager.getNestingState('child')
+      expect(childState.nestingDepth).toBe(0)
+      expect(childState.targetNestingDepth).toBe(0)
+    })
+
+    test('child opening sets targetNestingDepth on parent', () => {
+      const { manager, machines } = buildNestingPair()
+
+      machines.child.requestOpen() // Closed -> Opening
+
+      const rootState = manager.getNestingState('root')
+      expect(rootState.nestingDepth).toBe(0) // not yet committed
+      expect(rootState.targetNestingDepth).toBe(1)
+    })
+
+    test('child node itself remains at nesting depth 0', () => {
+      const { manager, machines } = buildNestingPair()
+
+      machines.child.requestOpen()
+
+      const childState = manager.getNestingState('child')
+      expect(childState.nestingDepth).toBe(0)
+      expect(childState.targetNestingDepth).toBe(0)
+    })
+
+    test('two-level nesting: grandchild opening deepens ancestor targets', () => {
+      const { manager, machines } = buildNestingChain()
+
+      // Open child first
+      machines.child.requestOpen()
+
+      expect(manager.getNestingState('root').targetNestingDepth).toBe(1)
+      expect(manager.getNestingState('child').targetNestingDepth).toBe(0)
+
+      // Now open grandchild
+      machines.grandchild.requestOpen()
+
+      expect(manager.getNestingState('root').targetNestingDepth).toBe(2)
+      expect(manager.getNestingState('child').targetNestingDepth).toBe(1)
+      expect(manager.getNestingState('grandchild').targetNestingDepth).toBe(0)
+    })
+
+    test('child closing resets targetNestingDepth on parent', () => {
+      const { manager, machines } = buildNestingPair()
+
+      // Open child
+      machines.child.requestOpen()
+      expect(manager.getNestingState('root').targetNestingDepth).toBe(1)
+
+      // Close child
+      machines.child.requestClose() // Opening -> Closing
+
+      expect(manager.getNestingState('root').targetNestingDepth).toBe(0)
+    })
+
+    test('grandchild closing reduces ancestor depths by one', () => {
+      const { manager, machines } = buildNestingChain()
+
+      machines.child.requestOpen()
+      machines.grandchild.requestOpen()
+      expect(manager.getNestingState('root').targetNestingDepth).toBe(2)
+      expect(manager.getNestingState('child').targetNestingDepth).toBe(1)
+
+      // Close grandchild
+      machines.grandchild.requestClose()
+
+      expect(manager.getNestingState('root').targetNestingDepth).toBe(1)
+      expect(manager.getNestingState('child').targetNestingDepth).toBe(0)
+    })
+
+    test('registerNestingTransition returns handle when animation is needed', () => {
+      const { manager, machines } = buildNestingPair()
+
+      machines.child.requestOpen()
+
+      const handle = manager.registerNestingTransition('root')
+      expect(handle).not.toBeNull()
+    })
+
+    test('registerNestingTransition returns null when no animation is needed', () => {
+      const { manager } = buildNestingPair()
+
+      // No child opened — depth === targetDepth === 0
+      const handle = manager.registerNestingTransition('root')
+      expect(handle).toBeNull()
+    })
+
+    test('reportComplete commits nestingDepth to targetNestingDepth', () => {
+      const { manager, machines } = buildNestingPair()
+
+      machines.child.requestOpen()
+      expect(manager.getNestingState('root').targetNestingDepth).toBe(1)
+      expect(manager.getNestingState('root').nestingDepth).toBe(0)
+
+      const handle = manager.registerNestingTransition('root')
+      assert(handle)
+      handle.reportComplete()
+
+      const rootState = manager.getNestingState('root')
+      expect(rootState.nestingDepth).toBe(1)
+      expect(rootState.targetNestingDepth).toBe(1)
+    })
+
+    test('reportComplete invalidates snapshot', () => {
+      const { manager, machines } = buildNestingPair()
+
+      machines.child.requestOpen()
+
+      const snap1 = manager.getSnapshot()
+      const handle = manager.registerNestingTransition('root')
+      assert(handle)
+      handle.reportComplete()
+
+      const snap2 = manager.getSnapshot()
+      expect(snap1).not.toBe(snap2)
+    })
+
+    test('reportComplete notifies subscribe listeners', () => {
+      const { manager, machines } = buildNestingPair()
+
+      machines.child.requestOpen()
+
+      const listener = vi.fn()
+      manager.subscribe(listener)
+      listener.mockClear()
+
+      const handle = manager.registerNestingTransition('root')
+      assert(handle)
+      handle.reportComplete()
+
+      expect(listener).toHaveBeenCalled()
+    })
+
+    test('stale handle is ignored after target changes again', () => {
+      const { manager, machines } = buildNestingChain()
+
+      machines.child.requestOpen()
+      const firstHandle = manager.registerNestingTransition('root')
+      assert(firstHandle)
+
+      // Before first animation completes, grandchild opens → new target
+      machines.grandchild.requestOpen()
+      expect(manager.getNestingState('root').targetNestingDepth).toBe(2)
+
+      // First handle's reportComplete should be ignored
+      firstHandle.reportComplete()
+      expect(manager.getNestingState('root').nestingDepth).toBe(0) // not committed
+      expect(manager.getNestingState('root').targetNestingDepth).toBe(2) // unchanged
+    })
+
+    test('second handle works after first becomes stale', () => {
+      const { manager, machines } = buildNestingChain()
+
+      machines.child.requestOpen()
+      const firstHandle = manager.registerNestingTransition('root')
+      assert(firstHandle)
+
+      machines.grandchild.requestOpen()
+
+      const secondHandle = manager.registerNestingTransition('root')
+      assert(secondHandle)
+      secondHandle.reportComplete()
+
+      expect(manager.getNestingState('root').nestingDepth).toBe(2)
+      expect(manager.getNestingState('root').targetNestingDepth).toBe(2)
+    })
+
+    test('reportCancel does not commit nestingDepth', () => {
+      const { manager, machines } = buildNestingPair()
+
+      machines.child.requestOpen()
+
+      const handle = manager.registerNestingTransition('root')
+      assert(handle)
+      handle.reportCancel()
+
+      expect(manager.getNestingState('root').nestingDepth).toBe(0)
+      expect(manager.getNestingState('root').targetNestingDepth).toBe(1) // unchanged
+    })
+
+    test('unregistering child recalculates ancestor nesting depth', () => {
+      const { manager, machines } = buildNestingPair()
+
+      machines.child.requestOpen()
+      expect(manager.getNestingState('root').targetNestingDepth).toBe(1)
+
+      // Simulate the handle commit first
+      const handle = manager.registerNestingTransition('root')
+      assert(handle)
+      handle.reportComplete()
+      expect(manager.getNestingState('root').nestingDepth).toBe(1)
+
+      // Now unregister the child — no open descendants remain
+      // First we need the unregister function, so re-build the scenario
+      const manager2 = new DrawerRegistry()
+      const rootMachine = createMachine(true)
+      const childMachine = createMachine(false)
+
+      manager2.register({ id: 'root', parentId: null, machine: rootMachine })
+      const unregChild = manager2.register({
+        id: 'child',
+        parentId: 'root',
+        machine: childMachine,
+      })
+
+      childMachine.requestOpen()
+      expect(manager2.getNestingState('root').targetNestingDepth).toBe(1)
+
+      unregChild()
+
+      // After unregister, root has no open descendants
+      expect(manager2.getNestingState('root').targetNestingDepth).toBe(0)
+    })
+
+    test('nesting fields appear in DrawerNodeView from getNode', () => {
+      const { manager, machines } = buildNestingPair()
+
+      machines.child.requestOpen()
+
+      const rootView = manager.getNode('root')
+      assert(rootView)
+      expect(rootView.nestingDepth).toBe(0)
+      expect(rootView.targetNestingDepth).toBe(1)
+    })
+
+    test('nesting fields appear in getSnapshot', () => {
+      const { manager, machines } = buildNestingPair()
+
+      machines.child.requestOpen()
+
+      const snapshot = manager.getSnapshot()
+      const rootSnap = snapshot.find((n) => n.id === 'root')
+      assert(rootSnap)
+      expect(rootSnap.targetNestingDepth).toBe(1)
+    })
+
+    test('getNestingState returns default for unregistered id', () => {
+      const manager = new DrawerRegistry()
+      const state = manager.getNestingState('nonexistent')
+      expect(state.nestingDepth).toBe(0)
+      expect(state.targetNestingDepth).toBe(0)
+    })
+
+    test('registerNestingTransition returns null for unregistered id', () => {
+      const manager = new DrawerRegistry()
+      expect(manager.registerNestingTransition('nonexistent')).toBeNull()
+    })
+
+    test('registering a node with already-open descendants computes initial depth', () => {
+      const manager = new DrawerRegistry()
+      const childMachine = createMachine(true) // starts Idle (open)
+
+      manager.register({
+        id: 'root',
+        parentId: null,
+        machine: createMachine(true),
+      })
+      manager.register({
+        id: 'child',
+        parentId: 'root',
+        machine: childMachine,
+      })
+
+      // Root should already see child as open
+      const rootState = manager.getNestingState('root')
+      expect(rootState.nestingDepth).toBe(1)
+      expect(rootState.targetNestingDepth).toBe(1)
+    })
+
+    test('subscribe listener fires on nesting state change', () => {
+      const { manager, machines } = buildNestingPair()
+
+      const listener = vi.fn()
+      manager.subscribe(listener)
+      listener.mockClear()
+
+      machines.child.requestOpen()
+
+      // Listener should have fired (at least once for the phase change which
+      // also triggers nesting recalculation)
+      expect(listener).toHaveBeenCalled()
+    })
+
+    test('middle node removal recalculates root nesting depth', () => {
+      const manager = new DrawerRegistry()
+      const machines = {
+        root: createMachine(true),
+        child: createMachine(true),
+        grandchild: createMachine(true),
+      }
+
+      manager.register({
+        id: 'root',
+        parentId: null,
+        machine: machines.root,
+      })
+      const unregChild = manager.register({
+        id: 'child',
+        parentId: 'root',
+        machine: machines.child,
+      })
+      manager.register({
+        id: 'grandchild',
+        parentId: 'child',
+        machine: machines.grandchild,
+      })
+
+      // root nestingDepth = 2 (child + grandchild both open)
+      expect(manager.getNestingState('root').targetNestingDepth).toBe(2)
+      expect(manager.getNestingState('child').targetNestingDepth).toBe(1)
+
+      // Remove child — grandchild still exists as orphan with parentId='child'
+      // but child entry is gone, so root can't reach grandchild
+      unregChild()
+
+      expect(manager.getNestingState('root').targetNestingDepth).toBe(0)
+    })
+
+    test('sibling open warning in dev mode', () => {
+      const manager = new DrawerRegistry()
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      manager.register({
+        id: 'root',
+        parentId: null,
+        machine: createMachine(true),
+      })
+
+      const childA = createMachine(true) // starts open
+      manager.register({
+        id: 'childA',
+        parentId: 'root',
+        machine: childA,
+      })
+
+      const childB = createMachine(false)
+      manager.register({
+        id: 'childB',
+        parentId: 'root',
+        machine: childB,
+      })
+
+      // Opening childB while childA is already open should warn
+      childB.requestOpen()
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Drawer "childB" is opening while sibling "childA" is already open',
+        ),
+      )
+
+      warnSpy.mockRestore()
+    })
+
+    test('target falls back to committed depth when child closes before animation completes', () => {
+      const { manager, machines } = buildNestingPair()
+
+      // Open child -> root target becomes 1
+      machines.child.requestOpen()
+      expect(manager.getNestingState('root').targetNestingDepth).toBe(1)
+      expect(manager.getNestingState('root').nestingDepth).toBe(0)
+
+      // Close child before root's scale animation was registered
+      machines.child.requestClose()
+
+      // Target should be back to 0 and since nestingDepth was 0 too, no animation needed
+      const rootState = manager.getNestingState('root')
+      expect(rootState.targetNestingDepth).toBe(0)
+      expect(rootState.nestingDepth).toBe(0)
+    })
+  })
 })
