@@ -129,13 +129,13 @@ describe('DrawerRegistry', () => {
       return { manager, machines }
     }
 
-    test('getDepth returns correct depth for each level', () => {
+    test('depth is correct for each level', () => {
       const { manager } = buildTree()
 
-      expect(manager.getDepth('root')).toBe(0)
-      expect(manager.getDepth('child1')).toBe(1)
-      expect(manager.getDepth('child2')).toBe(1)
-      expect(manager.getDepth('grandchild')).toBe(2)
+      expect(manager.getNode('root')?.depth).toBe(0)
+      expect(manager.getNode('child1')?.depth).toBe(1)
+      expect(manager.getNode('child2')?.depth).toBe(1)
+      expect(manager.getNode('grandchild')?.depth).toBe(2)
     })
 
     test('getChildren returns direct children only', () => {
@@ -509,7 +509,7 @@ describe('DrawerRegistry', () => {
         machine: createMachine(),
       })
 
-      expect(manager.getDepth('child')).toBe(1)
+      expect(manager.getNode('child')?.depth).toBe(1)
 
       unregParent()
 
@@ -519,7 +519,7 @@ describe('DrawerRegistry', () => {
       expect(child!.parentId).toBe('parent')
       // parentId is non-null but the parent entry doesn't exist, so depth
       // counts the one hop to the missing parent before stopping → depth = 1
-      expect(manager.getDepth('child')).toBe(1)
+      expect(manager.getNode('child')?.depth).toBe(1)
     })
 
     test('getNode returns undefined for non-existent id', () => {
@@ -527,9 +527,9 @@ describe('DrawerRegistry', () => {
       expect(manager.getNode('nonexistent')).toBeUndefined()
     })
 
-    test('getDepth returns 0 for non-existent id', () => {
+    test('depth is undefined for non-existent id', () => {
       const manager = new DrawerRegistry()
-      expect(manager.getDepth('nonexistent')).toBe(0)
+      expect(manager.getNode('nonexistent')?.depth).toBeUndefined()
     })
 
     test('phase unsubscription on unregister prevents stale notifications', () => {

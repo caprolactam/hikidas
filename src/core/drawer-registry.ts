@@ -202,16 +202,6 @@ export class DrawerRegistry {
     return this.#toView(entry)
   }
 
-  getDepth(id: DrawerId): number {
-    let depth = 0
-    let current = this.#entries.get(id)
-    while (current?.parentId != null) {
-      depth++
-      current = this.#entries.get(current.parentId)
-    }
-    return depth
-  }
-
   getChildren(id: DrawerId): DrawerNodeView[] {
     const children: DrawerNodeView[] = []
     for (const entry of this.#entries.values()) {
@@ -286,7 +276,7 @@ export class DrawerRegistry {
     let maxDepth = -1
     for (const entry of this.#entries.values()) {
       if (isOpenPhase(entry.machine.snapshot.phase)) {
-        const depth = this.getDepth(entry.id)
+        const depth = this.#computeDepth(entry.id)
         if (depth > maxDepth) {
           maxDepth = depth
           frontmost = this.#toView(entry)
@@ -539,11 +529,21 @@ export class DrawerRegistry {
     return {
       id: entry.id,
       parentId: entry.parentId,
-      depth: this.getDepth(entry.id),
+      depth: this.#computeDepth(entry.id),
       phase: entry.machine.snapshot.phase,
       nestingDepth: nesting.nestingDepth,
       targetNestingDepth: nesting.targetNestingDepth,
     }
+  }
+
+  #computeDepth(id: DrawerId): number {
+    let depth = 0
+    let current = this.#entries.get(id)
+    while (current?.parentId != null) {
+      depth++
+      current = this.#entries.get(current.parentId)
+    }
+    return depth
   }
 
   #getRootEntries(): DrawerNodeEntry[] {
