@@ -32,7 +32,7 @@ function NestedContent({
   const heights = ['h-[75vh]', 'h-[65vh]', 'h-[55vh]']
   return (
     <Drawer.Content
-      className={`fixed bottom-0 inset-x-0 bg-white ${heights[level] ?? 'h-[50vh]'} rounded-t-3xl border border-slate-200`}
+      className={`fixed bottom-0 inset-x-0 bg-white ${heights[level] ?? 'h-[50vh]'} rounded-t-3xl border border-slate-200 after:absolute after:inset-0 after:rounded-[inherit] after:bg-transparent after:pointer-events-none after:transition-[background-color] after:duration-200 after:ease-[cubic-bezier(0.32,0.72,0,1)] data-nested-drawer-open:after:bg-black/5`}
     >
       {children}
     </Drawer.Content>
@@ -66,7 +66,6 @@ export const Basic: Story = {
                     Open Child Drawer
                   </Drawer.Trigger>
                   <Drawer.Portal>
-                    <Overlay />
                     <NestedContent level={1}>
                       <DummyHandle />
                       <div className='space-y-4 px-6 pb-6'>
@@ -120,7 +119,6 @@ export const ThreeLevels: Story = {
                     Open Level 2
                   </Drawer.Trigger>
                   <Drawer.Portal>
-                    <Overlay />
                     <NestedContent level={1}>
                       <DummyHandle />
                       <div className='space-y-4 px-6 pb-6'>
@@ -135,7 +133,6 @@ export const ThreeLevels: Story = {
                             Open Level 3
                           </Drawer.Trigger>
                           <Drawer.Portal>
-                            <Overlay />
                             <NestedContent level={2}>
                               <DummyHandle />
                               <div className='space-y-4 px-6 pb-6'>
@@ -216,7 +213,6 @@ export const Controlled: Story = {
                       Open Child
                     </button>
                     <Drawer.Portal>
-                      <Overlay />
                       <NestedContent level={1}>
                         <DummyHandle />
                         <div className='space-y-4 px-6 pb-6'>
@@ -281,7 +277,6 @@ export const WithoutRegistry: Story = {
                   Open Child Drawer
                 </Drawer.Trigger>
                 <Drawer.Portal>
-                  <Overlay />
                   <NestedContent level={1}>
                     <DummyHandle />
                     <div className='space-y-4 px-6 pb-6'>
@@ -339,7 +334,6 @@ export const InitiallyOpen: Story = {
                     Open Child Drawer
                   </Drawer.Trigger>
                   <Drawer.Portal>
-                    <Overlay />
                     <NestedContent level={1}>
                       <DummyHandle />
                       <div className='space-y-4 px-6 pb-6'>
@@ -379,7 +373,7 @@ export const DifferentDirections: Story = {
           </Drawer.Trigger>
           <Drawer.Portal>
             <Overlay />
-            <Drawer.Content className='fixed bottom-0 inset-x-0 bg-white h-[75vh] rounded-t-3xl border border-slate-200'>
+            <Drawer.Content className="fixed bottom-0 inset-x-0 bg-white h-[75vh] rounded-t-3xl border border-slate-200 after:absolute after:inset-0 after:rounded-[inherit] after:bg-transparent after:pointer-events-none after:content-[''] after:transition-[background-color] after:duration-350 after:ease-[cubic-bezier(0.32,0.72,0,1)] aria-hidden:after:bg-black/5">
               <DummyHandle />
               <div className='space-y-4 px-6 pb-6'>
                 <Title>Bottom Drawer (Parent)</Title>
@@ -392,7 +386,6 @@ export const DifferentDirections: Story = {
                     Open Right Drawer
                   </Drawer.Trigger>
                   <Drawer.Portal>
-                    <Overlay />
                     <Drawer.Content className='fixed top-0 right-0 bottom-0 w-[80vw] max-w-md bg-white rounded-l-3xl border border-slate-200'>
                       <DummyHandle />
                       <div className='space-y-4 px-6 pt-8 pb-6'>

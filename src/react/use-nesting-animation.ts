@@ -10,7 +10,7 @@ import { useStatic } from './utils/use-static'
 // ── Constants ────────────────────────────────────────────────
 
 /** Scale reduction per nesting depth level. depth=1 → scale=0.95, depth=2 → scale=0.90 */
-const NESTING_SCALE_FACTOR = 0.05
+const NESTING_SCALE_FACTOR = 0.03
 
 const NESTING_SPRING_CONFIG: SpringAnimateConfig = {
   bounce: 0,
@@ -34,11 +34,13 @@ function applyNestingStyles(element: HTMLElement, depth: number): void {
   if (depth === 0) {
     clearNestingStyles(element)
   } else {
+    element.setAttribute('data-nested-drawer-open', '')
     element.style.scale = String(scaleForDepth(depth))
   }
 }
 
 function clearNestingStyles(element: HTMLElement): void {
+  element.removeAttribute('data-nested-drawer-open')
   element.style.scale = ''
 }
 
@@ -92,6 +94,14 @@ export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
       const handle = registry.registerNestingTransition(drawerId)
       const targetScale = scaleForDepth(state.targetNestingDepth)
       const targetDepth = state.targetNestingDepth
+
+      // Set/remove data attribute before play() so it's batched with
+      // the getComputedStyle read inside animate.play() — no extra forced sync.
+      if (targetDepth > 0) {
+        el.setAttribute('data-nested-drawer-open', '')
+      } else {
+        el.removeAttribute('data-nested-drawer-open')
+      }
 
       animate
         .play(
