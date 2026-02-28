@@ -12,9 +12,6 @@ import { useStatic } from './utils/use-static'
 /** Scale reduction per nesting depth level. depth=1 → scale=0.95, depth=2 → scale=0.90 */
 const NESTING_SCALE_FACTOR = 0.05
 
-/** Border radius increase per nesting depth level (px). depth=1 → 8px, depth=2 → 16px */
-const NESTING_BORDER_RADIUS_PX = 8
-
 const NESTING_SPRING_CONFIG: SpringAnimateConfig = {
   bounce: 0,
   duration: 0.35,
@@ -27,18 +24,10 @@ function scaleForDepth(depth: number): number {
   return 1 - depth * NESTING_SCALE_FACTOR
 }
 
-function borderRadiusForDepth(depth: number): number {
-  return depth * NESTING_BORDER_RADIUS_PX
-}
-
 function parseScale(style: CSSStyleDeclaration): number {
   const raw = style.scale
   if (!raw || raw === 'none') return 1
   return parseFloat(raw) || 1
-}
-
-function parseBorderRadius(style: CSSStyleDeclaration): number {
-  return parseFloat(style.borderRadius) || 0
 }
 
 function applyNestingStyles(element: HTMLElement, depth: number): void {
@@ -46,13 +35,11 @@ function applyNestingStyles(element: HTMLElement, depth: number): void {
     clearNestingStyles(element)
   } else {
     element.style.scale = String(scaleForDepth(depth))
-    element.style.borderRadius = `${borderRadiusForDepth(depth)}px`
   }
 }
 
 function clearNestingStyles(element: HTMLElement): void {
   element.style.scale = ''
-  element.style.borderRadius = ''
 }
 
 // ── Hook ─────────────────────────────────────────────────────
@@ -63,7 +50,7 @@ interface UseNestingAnimationProps {
 
 /**
  * Subscribes to the DrawerRegistry's nesting state for the current drawer
- * and applies scale + borderRadius spring animations when targetNestingDepth changes.
+ * and applies scale spring animations when targetNestingDepth changes.
  *
  * When a child drawer opens, the registry increases this drawer's targetNestingDepth,
  * causing it to scale down (appear pushed into the background).
@@ -103,14 +90,7 @@ export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
       prevTargetRef.current = state.targetNestingDepth
 
       const handle = registry.registerNestingTransition(drawerId)
-      if (!handle) {
-        // No animation needed (depth already matches target) — apply directly
-        applyNestingStyles(el, state.targetNestingDepth)
-        return
-      }
-
       const targetScale = scaleForDepth(state.targetNestingDepth)
-      const targetBorderRadius = borderRadiusForDepth(state.targetNestingDepth)
       const targetDepth = state.targetNestingDepth
 
       animate
@@ -118,18 +98,19 @@ export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
           el,
           (prevStyle) => ({
             scale: [parseScale(prevStyle), targetScale],
-            borderRadius: [parseBorderRadius(prevStyle), targetBorderRadius],
           }),
           NESTING_SPRING_CONFIG,
         )
         .then(() => {
-          handle.reportComplete()
+          handle?.reportComplete()
           // Clear inline styles when returning to base state to respect CSS cascade
           if (targetDepth === 0) {
             clearNestingStyles(el)
           }
         })
-        .catch(handle.reportCancel)
+        .catch(() => {
+          handle?.reportCancel()
+        })
     })
 
     return () => {

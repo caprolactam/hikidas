@@ -3,11 +3,7 @@ import { spring } from './spring'
 
 type TranslateKeys = 'x' | 'y' | 'z'
 /** @internal */
-export type AnimatablePropertyKeys =
-  | 'opacity'
-  | 'scale'
-  | 'borderRadius'
-  | TranslateKeys
+export type AnimatablePropertyKeys = 'opacity' | 'scale' | TranslateKeys
 type FromToValue = [number, number]
 /** @internal */
 export type AnimatableProperties = {
@@ -157,8 +153,6 @@ export function initAnimate() {
 
 const TRANSLATE_KEYS: readonly TranslateKeys[] = ['x', 'y', 'z']
 
-const PX_PROPERTIES: ReadonlySet<string> = new Set(['borderRadius'])
-const formatPx = (v: number): string => `${v}px`
 const formatUnitless = (v: number): string => String(v)
 
 function resolveProperties(
@@ -182,11 +176,10 @@ function resolveProperties(
 
   for (const [key, value] of Object.entries(properties)) {
     if (!value || (TRANSLATE_KEYS as readonly string[]).includes(key)) continue
-    const formatter = PX_PROPERTIES.has(key) ? formatPx : formatUnitless
     result.push({
       cssProperty: key,
       pairs: [value],
-      format: ([v]: number[]) => formatter(v!),
+      format: ([v]: number[]) => formatUnitless(v!),
     })
   }
 
