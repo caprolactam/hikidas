@@ -27,6 +27,7 @@ import {
   useOverlayAnimation,
 } from './use-drawer-animation'
 import { useDrawerGesture } from './use-drawer-gesture'
+import { useNestingAnimation } from './use-nesting-animation'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
 import { useMergeRefs } from './utils/use-merge-refs'
 import { useStatic } from './utils/use-static'
@@ -220,7 +221,9 @@ function useDrawerRoot({
   )
 
   // ── Registry registration (opt-in) ────────────────────
-  useEffect(() => {
+  // useIsomorphicEffect (layoutEffect on client) ensures registration happens before paint,
+  // so that nesting styles can be applied without a visible flash when defaultOpen is used.
+  useIsomorphicEffect(() => {
     if (!manager) return
     return manager.register({
       id: drawerId,
@@ -380,6 +383,7 @@ export function useDrawerContent(props: {
     machine,
     elementRef: contentRef,
   })
+  useNestingAnimation({ elementRef: contentRef })
 
   const handlers = useDrawerGesture({
     machine,
