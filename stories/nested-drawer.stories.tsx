@@ -326,6 +326,12 @@ export const InitiallyOpen: Story = {
                 <Description>
                   Both parent and child are initially open. The parent should
                   already be scaled down on mount — no flash.
+                  <br />
+                  <br />
+                  <strong>Note:</strong> After closing all drawers and reopening
+                  the parent, the child remounts with defaultOpen=true again.
+                  Use controlled `open` prop to preserve closed state across
+                  parent reopen cycles.
                 </Description>
 
                 <Drawer.Root defaultOpen>
