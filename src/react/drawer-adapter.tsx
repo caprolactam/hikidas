@@ -3,10 +3,12 @@ import {
   useRef,
   useCallback,
   useEffect,
+  useId,
   useState,
   useSyncExternalStore,
 } from 'react'
 import { DrawerMachine } from '../core/drawer-machine'
+import type { DrawerId } from '../core/drawer-registry'
 import { Phase, isOpenPhase } from '../core/reducer'
 import type { DismissalDirection } from '../core/types'
 import { composeEventHandlers } from '../core/utils/compose-event-handlers'
@@ -15,6 +17,11 @@ import {
   type DrawerContextValue,
   useDrawerContext,
 } from './context'
+import {
+  DrawerIdContext,
+  useDrawerRegistry,
+  useParentDrawerId,
+} from './drawer-registry-context'
 import {
   useContentAnimation,
   useOverlayAnimation,
@@ -131,6 +138,12 @@ export interface DrawerRootAPI {
    * @param snapPointIndex - The index of the new snap point
    */
   onSnapPointChange?: (snapPointIndex: number) => void
+  /**
+   * Unique identifier for this drawer instance when using DrawerRegistryProvider.
+   * If omitted, an auto-generated id is used. Only meaningful when a DrawerRegistryProvider
+   * is present in the ancestor tree — otherwise this prop is ignored.
+   */
+  drawerId?: DrawerId
 }
 
 interface DrawerProviderAPI {
@@ -142,13 +155,16 @@ interface DrawerProviderProps extends DrawerRootAPI {
 }
 
 export function DrawerProvider({ children, ...props }: DrawerProviderProps) {
-  const { isOpen, handleIsOpenChange, contextValue } = useDrawerRoot(props)
+  const { isOpen, handleIsOpenChange, contextValue, drawerId } =
+    useDrawerRoot(props)
 
   return (
-    <DrawerContext value={contextValue}>
-      {children({ isOpen, handleIsOpenChange })}
-      {__DEV__ ? <SnapPointsWarning snapPoints={props.snapPoints} /> : null}
-    </DrawerContext>
+    <DrawerIdContext value={drawerId}>
+      <DrawerContext value={contextValue}>
+        {children({ isOpen, handleIsOpenChange })}
+        {__DEV__ ? <SnapPointsWarning snapPoints={props.snapPoints} /> : null}
+      </DrawerContext>
+    </DrawerIdContext>
   )
 }
 
@@ -162,7 +178,12 @@ function useDrawerRoot({
   defaultSnapPoint,
   snapPoint,
   onSnapPointChange,
+  drawerId: drawerIdProp,
 }: DrawerRootAPI) {
+  const autoId = useId()
+  const drawerId = drawerIdProp ?? autoId
+  const manager = useDrawerRegistry()
+  const parentDrawerId = useParentDrawerId()
   const [desiredOpen, setDesiredOpen] = useControllableState({
     value: open,
     defaultValue: !!defaultOpen,
@@ -197,6 +218,16 @@ function useDrawerRoot({
         },
       ),
   )
+
+  // ── Registry registration (opt-in) ────────────────────
+  useEffect(() => {
+    if (!manager) return
+    return manager.register({
+      id: drawerId,
+      parentId: parentDrawerId,
+      machine,
+    })
+  }, [manager, drawerId, parentDrawerId, machine])
 
   useEffect(() => {
     machine.updateConfig({
@@ -278,6 +309,7 @@ function useDrawerRoot({
     isOpen,
     handleIsOpenChange,
     contextValue,
+    drawerId,
   }
 }
 

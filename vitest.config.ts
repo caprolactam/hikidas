@@ -7,9 +7,14 @@ import { defineConfig } from 'vitest/config'
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
+  define: {
+    // src/global.d.ts
+    __DEV__: true,
+  },
   test: {
     projects: [
       {
+        extends: true,
         test: {
           name: 'core',
           include: ['src/core/**/*.test.{ts,tsx}'],
