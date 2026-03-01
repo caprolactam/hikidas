@@ -3,17 +3,13 @@ import {
   initAnimate,
   type SpringAnimateConfig,
 } from '../core/animation/animate'
+import { NestingPhase } from '../core/drawer-registry'
+import { scaleForDepth } from '../core/nesting'
 import { DrawerIdContext, useDrawerRegistry } from './drawer-registry-context'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
 import { useStatic } from './utils/use-static'
 
 // ── Constants ────────────────────────────────────────────────
-
-/**
- * Distance in px used to derive the scale ratio (vaul-style).
- * scale = (window.innerWidth - NESTING_DISPLACEMENT * depth) / window.innerWidth
- */
-const NESTING_DISPLACEMENT = 16
 
 const NESTING_SPRING_CONFIG: SpringAnimateConfig = {
   bounce: 0,
@@ -22,15 +18,6 @@ const NESTING_SPRING_CONFIG: SpringAnimateConfig = {
 }
 
 // ── Helpers ──────────────────────────────────────────────────
-
-/**
- * Scale computed at animation time so that reading window.innerWidth
- * happens after getComputedStyle() inside animate.play() — no extra layout flush.
- */
-function scaleForDepth(depth: number): number {
-  if (depth === 0) return 1
-  return (window.innerWidth - NESTING_DISPLACEMENT * depth) / window.innerWidth
-}
 
 function parseScale(style: CSSStyleDeclaration): number {
   const raw = style.scale
@@ -56,14 +43,12 @@ interface UseNestingAnimationProps {
 
 /**
  * Subscribes to the DrawerRegistry's nesting state for the current drawer
- * and applies a scale spring animation when targetNestingDepth changes.
+ * and applies scale animations based on the nesting phase.
  *
- * When a child drawer opens, the registry increases this drawer's targetNestingDepth,
- * causing it to scale down (appear pushed into the background).
- * When the child closes, it scales back up.
- *
- * Scale uses a vaul-style formula: `(window.innerWidth - 16 * depth) / window.innerWidth`,
- * computed inside the animate.play() callback to avoid a forced layout flush.
+ * Handles three animation scenarios:
+ * - **Nesting / Unnesting**: child opening/closing — spring to targetNestingDepth
+ * - **DragRestoring**: drag cancelled — spring back to committed nestingDepth
+ * - **DragControlled**: skipped — DragRegistry controls scale directly
  *
  * No-op when DrawerRegistryProvider is not present.
  *
@@ -73,7 +58,7 @@ export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
   const drawerId = useContext(DrawerIdContext)
   const registry = useDrawerRegistry()
   const animate = useStatic(() => initAnimate())
-  const prevTargetRef = useRef<number | null>(null)
+  const prevPhaseRef = useRef<NestingPhase | null>(null)
 
   useIsomorphicEffect(() => {
     if (!registry || !drawerId) return
@@ -82,7 +67,7 @@ export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
 
     // Apply initial nesting state without animation (e.g. defaultOpen on both parent and child)
     const initialState = registry.getNestingState(drawerId)
-    prevTargetRef.current = initialState.targetNestingDepth
+    prevPhaseRef.current = initialState.phase
 
     if (initialState.nestingDepth > 0 && element) {
       applyNestingStyles(element, initialState.nestingDepth)
@@ -94,41 +79,76 @@ export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
 
       const state = registry.getNestingState(drawerId)
 
-      // Only react when targetNestingDepth actually changes
-      if (state.targetNestingDepth === prevTargetRef.current) return
-      prevTargetRef.current = state.targetNestingDepth
+      // Only react when nesting phase actually changes
+      if (state.phase === prevPhaseRef.current) return
+      prevPhaseRef.current = state.phase
 
-      const handle = registry.registerNestingTransition(drawerId)
-      const targetDepth = state.targetNestingDepth
+      switch (state.phase) {
+        case NestingPhase.Nesting:
+        case NestingPhase.Unnesting: {
+          // Scale transition: animate to targetNestingDepth
+          const handle = registry.registerNestingTransition(drawerId)
+          const targetDepth = state.targetNestingDepth
 
-      // Set/remove data attribute before play() so it's batched with
-      // the getComputedStyle read inside animate.play() — no extra forced sync.
-      if (targetDepth > 0) {
-        el.setAttribute('data-nested-drawer-open', '')
-      } else {
-        el.removeAttribute('data-nested-drawer-open')
-      }
-
-      animate
-        .play(
-          el,
-          // Compute scale inside the callback: by this point getComputedStyle()
-          // has already been called, so window.innerWidth read is free of extra layout flush.
-          (prevStyle) => ({
-            scale: [parseScale(prevStyle), scaleForDepth(targetDepth)],
-          }),
-          NESTING_SPRING_CONFIG,
-        )
-        .then(() => {
-          handle?.reportComplete()
-          // Clear inline styles when returning to base state to respect CSS cascade
-          if (targetDepth === 0) {
-            clearNestingStyles(el)
+          if (targetDepth > 0) {
+            el.setAttribute('data-nested-drawer-open', '')
+          } else {
+            el.removeAttribute('data-nested-drawer-open')
           }
-        })
-        .catch(() => {
-          handle?.reportCancel()
-        })
+
+          animate
+            .play(
+              el,
+              (prevStyle) => ({
+                scale: [parseScale(prevStyle), scaleForDepth(targetDepth)],
+              }),
+              NESTING_SPRING_CONFIG,
+            )
+            .then(() => {
+              handle?.reportComplete()
+              if (targetDepth === 0) {
+                clearNestingStyles(el)
+              }
+            })
+            .catch(() => {
+              handle?.reportCancel()
+            })
+          break
+        }
+
+        case NestingPhase.DragControlled:
+          // DragRegistry is directly writing style.scale — do nothing.
+          break
+
+        case NestingPhase.DragRestoring: {
+          // Drag cancelled: animate scale back to committed depth.
+          // DragRegistry left an inline scale from the drag; we read it
+          // via getComputedStyle and spring back to the committed depth.
+          const handle = registry.registerNestingTransition(drawerId)
+          const committedDepth = state.nestingDepth
+
+          animate
+            .play(
+              el,
+              (prevStyle) => ({
+                scale: [parseScale(prevStyle), scaleForDepth(committedDepth)],
+              }),
+              NESTING_SPRING_CONFIG,
+            )
+            .then(() => {
+              handle?.reportComplete()
+            })
+            .catch(() => {
+              handle?.reportCancel()
+            })
+          break
+        }
+
+        case NestingPhase.Foreground:
+        case NestingPhase.Nested:
+          // Stable states — no animation needed.
+          break
+      }
     })
 
     return () => {

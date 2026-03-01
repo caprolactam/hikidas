@@ -1,4 +1,5 @@
 import {
+  useContext,
   useMemo,
   useRef,
   useCallback,
@@ -19,6 +20,7 @@ import {
 } from './context'
 import {
   DrawerIdContext,
+  useDragRegistry,
   useDrawerRegistry,
   useParentDrawerId,
 } from './drawer-registry-context'
@@ -379,11 +381,23 @@ export function useDrawerContent(props: {
   style: React.CSSProperties
 } {
   const { machine, contentRef, overlayRef } = useDrawerContext()
+  const dragRegistry = useDragRegistry()
+  const drawerId = useContext(DrawerIdContext)
+
   useContentAnimation({
     machine,
     elementRef: contentRef,
   })
   useNestingAnimation({ elementRef: contentRef })
+
+  // Register element with DragRegistry for drag-time ancestor scale control
+  useIsomorphicEffect(() => {
+    if (!dragRegistry || !drawerId || !contentRef.current) return
+    return dragRegistry.register(drawerId, {
+      node: contentRef.current,
+      overlayNode: overlayRef.current,
+    })
+  }, [dragRegistry, drawerId, contentRef, overlayRef])
 
   const handlers = useDrawerGesture({
     machine,

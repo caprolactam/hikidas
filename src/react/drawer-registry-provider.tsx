@@ -1,6 +1,10 @@
-import React from 'react'
+import React, { useEffect } from 'react'
+import { DragRegistry } from '../core/drag-registry'
 import { DrawerRegistry } from '../core/drawer-registry'
-import { DrawerRegistryContext } from './drawer-registry-context'
+import {
+  DragRegistryContext,
+  DrawerRegistryContext,
+} from './drawer-registry-context'
 import { useStatic } from './utils/use-static'
 
 interface DrawerRegistryProviderProps {
@@ -14,9 +18,10 @@ interface DrawerRegistryProviderProps {
 }
 
 /**
- * Provides a DrawerRegistry to all descendant Drawer components.
+ * Provides a DrawerRegistry and DragRegistry to all descendant Drawer components.
  * Nest this once near the root of your app to enable multi-drawer
- * features such as tree queries (getChildren, getAncestors, getFrontmostOpen).
+ * features such as tree queries (getChildren, getAncestors, getFrontmostOpen)
+ * and drag-time ancestor scale interpolation.
  *
  * When no DrawerRegistryProvider is present, drawers function independently —
  * the integration is fully opt-in.
@@ -43,8 +48,15 @@ export function DrawerRegistryProvider({
 }: DrawerRegistryProviderProps) {
   const internalRegistry = useStatic(() => new DrawerRegistry())
   const registry = externalRegistry ?? internalRegistry
+  const dragRegistry = useStatic(() => new DragRegistry(registry))
+
+  useEffect(() => () => dragRegistry.dispose(), [dragRegistry])
 
   return (
-    <DrawerRegistryContext value={registry}>{children}</DrawerRegistryContext>
+    <DrawerRegistryContext value={registry}>
+      <DragRegistryContext value={dragRegistry}>
+        {children}
+      </DragRegistryContext>
+    </DrawerRegistryContext>
   )
 }

@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react'
+import type { DragRegistry } from '../core/drag-registry'
 import { DrawerRegistry, type DrawerId } from '../core/drawer-registry'
 
 // ── DrawerRegistry Context ───────────────────────────────
@@ -37,4 +38,19 @@ export const DrawerIdContext = createContext<DrawerId | null>(null)
  */
 export function useParentDrawerId(): DrawerId | null {
   return useContext(DrawerIdContext)
+}
+
+// ── DragRegistry Context ─────────────────────────────────
+
+/** @internal */
+export const DragRegistryContext = createContext<DragRegistry | null>(null)
+
+/**
+ * Returns the DragRegistry from context, or null if no DrawerRegistryProvider
+ * is present. Opt-in — drawers function independently without it.
+ *
+ * @internal
+ */
+export function useDragRegistry(): DragRegistry | null {
+  return useContext(DragRegistryContext)
 }
