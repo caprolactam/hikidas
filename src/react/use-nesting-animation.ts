@@ -9,8 +9,11 @@ import { useStatic } from './utils/use-static'
 
 // ── Constants ────────────────────────────────────────────────
 
-/** Scale reduction per nesting depth level. depth=1 → scale=0.95, depth=2 → scale=0.90 */
-const NESTING_SCALE_FACTOR = 0.03
+/**
+ * Distance in px used to derive the scale ratio (vaul-style).
+ * scale = (window.innerWidth - NESTING_DISPLACEMENT * depth) / window.innerWidth
+ */
+const NESTING_DISPLACEMENT = 16
 
 const NESTING_SPRING_CONFIG: SpringAnimateConfig = {
   bounce: 0,
@@ -20,8 +23,13 @@ const NESTING_SPRING_CONFIG: SpringAnimateConfig = {
 
 // ── Helpers ──────────────────────────────────────────────────
 
+/**
+ * Scale computed at animation time so that reading window.innerWidth
+ * happens after getComputedStyle() inside animate.play() — no extra layout flush.
+ */
 function scaleForDepth(depth: number): number {
-  return 1 - depth * NESTING_SCALE_FACTOR
+  if (depth === 0) return 1
+  return (window.innerWidth - NESTING_DISPLACEMENT * depth) / window.innerWidth
 }
 
 function parseScale(style: CSSStyleDeclaration): number {
@@ -31,12 +39,8 @@ function parseScale(style: CSSStyleDeclaration): number {
 }
 
 function applyNestingStyles(element: HTMLElement, depth: number): void {
-  if (depth === 0) {
-    clearNestingStyles(element)
-  } else {
-    element.setAttribute('data-nested-drawer-open', '')
-    element.style.scale = String(scaleForDepth(depth))
-  }
+  element.setAttribute('data-nested-drawer-open', '')
+  element.style.scale = String(scaleForDepth(depth))
 }
 
 function clearNestingStyles(element: HTMLElement): void {
@@ -52,11 +56,14 @@ interface UseNestingAnimationProps {
 
 /**
  * Subscribes to the DrawerRegistry's nesting state for the current drawer
- * and applies scale spring animations when targetNestingDepth changes.
+ * and applies a scale spring animation when targetNestingDepth changes.
  *
  * When a child drawer opens, the registry increases this drawer's targetNestingDepth,
  * causing it to scale down (appear pushed into the background).
  * When the child closes, it scales back up.
+ *
+ * Scale uses a vaul-style formula: `(window.innerWidth - 16 * depth) / window.innerWidth`,
+ * computed inside the animate.play() callback to avoid a forced layout flush.
  *
  * No-op when DrawerRegistryProvider is not present.
  *
@@ -92,7 +99,6 @@ export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
       prevTargetRef.current = state.targetNestingDepth
 
       const handle = registry.registerNestingTransition(drawerId)
-      const targetScale = scaleForDepth(state.targetNestingDepth)
       const targetDepth = state.targetNestingDepth
 
       // Set/remove data attribute before play() so it's batched with
@@ -106,8 +112,10 @@ export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
       animate
         .play(
           el,
+          // Compute scale inside the callback: by this point getComputedStyle()
+          // has already been called, so window.innerWidth read is free of extra layout flush.
           (prevStyle) => ({
-            scale: [parseScale(prevStyle), targetScale],
+            scale: [parseScale(prevStyle), scaleForDepth(targetDepth)],
           }),
           NESTING_SPRING_CONFIG,
         )
