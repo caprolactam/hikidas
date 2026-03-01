@@ -973,6 +973,120 @@ describe('DrawerRegistry', () => {
       warnSpy.mockRestore()
     })
 
+    // ── Close propagation ──────────────────────────────────
+
+    test('closing a parent propagates close to open child', () => {
+      const manager = new DrawerRegistry()
+      const parent = createMachine(true)
+      const child = createMachine(true)
+
+      manager.register({ id: 'parent', parentId: null, machine: parent })
+      manager.register({ id: 'child', parentId: 'parent', machine: child })
+
+      parent.requestClose()
+
+      expect(parent.snapshot.phase).toBe(Phase.Closing)
+      expect(child.snapshot.phase).toBe(Phase.Closing)
+    })
+
+    test('close propagates recursively to grandchildren', () => {
+      const manager = new DrawerRegistry()
+      const root = createMachine(true)
+      const child = createMachine(true)
+      const grandchild = createMachine(true)
+
+      manager.register({ id: 'root', parentId: null, machine: root })
+      manager.register({ id: 'child', parentId: 'root', machine: child })
+      manager.register({
+        id: 'grandchild',
+        parentId: 'child',
+        machine: grandchild,
+      })
+
+      root.requestClose()
+
+      expect(root.snapshot.phase).toBe(Phase.Closing)
+      expect(child.snapshot.phase).toBe(Phase.Closing)
+      expect(grandchild.snapshot.phase).toBe(Phase.Closing)
+    })
+
+    test('closed child is not affected by parent close propagation', () => {
+      const manager = new DrawerRegistry()
+      const parent = createMachine(true)
+      const child = createMachine(false) // already Closed
+
+      manager.register({ id: 'parent', parentId: null, machine: parent })
+      manager.register({ id: 'child', parentId: 'parent', machine: child })
+
+      parent.requestClose()
+
+      expect(parent.snapshot.phase).toBe(Phase.Closing)
+      expect(child.snapshot.phase).toBe(Phase.Closed)
+    })
+
+    test('closing a root does not affect unrelated root drawers', () => {
+      const manager = new DrawerRegistry()
+      const rootA = createMachine(true)
+      const rootB = createMachine(true)
+
+      manager.register({ id: 'rootA', parentId: null, machine: rootA })
+      manager.register({ id: 'rootB', parentId: null, machine: rootB })
+
+      rootA.requestClose()
+
+      expect(rootA.snapshot.phase).toBe(Phase.Closing)
+      expect(rootB.snapshot.phase).toBe(Phase.Idle)
+    })
+
+    test('child in Opening phase is propagated close correctly', () => {
+      const manager = new DrawerRegistry()
+      const parent = createMachine(true)
+      const child = createMachine(false)
+
+      manager.register({ id: 'parent', parentId: null, machine: parent })
+      manager.register({ id: 'child', parentId: 'parent', machine: child })
+
+      child.requestOpen() // Closed -> Opening
+      expect(child.snapshot.phase).toBe(Phase.Opening)
+
+      parent.requestClose()
+
+      expect(child.snapshot.phase).toBe(Phase.Closing)
+    })
+
+    test('child already in Closing phase is not double-closed', () => {
+      const manager = new DrawerRegistry()
+      const parent = createMachine(true)
+      const child = createMachine(true)
+
+      manager.register({ id: 'parent', parentId: null, machine: parent })
+      manager.register({ id: 'child', parentId: 'parent', machine: child })
+
+      child.requestClose() // child enters Closing independently
+      expect(child.snapshot.phase).toBe(Phase.Closing)
+
+      // requestClose() on Closing is a no-op in the reducer
+      parent.requestClose()
+
+      expect(child.snapshot.phase).toBe(Phase.Closing)
+      expect(parent.snapshot.phase).toBe(Phase.Closing)
+    })
+
+    test('nesting depth on parent drops to 0 when parent closes with open child', () => {
+      const manager = new DrawerRegistry()
+      const parent = createMachine(true)
+      const child = createMachine(true)
+
+      manager.register({ id: 'parent', parentId: null, machine: parent })
+      manager.register({ id: 'child', parentId: 'parent', machine: child })
+
+      expect(manager.getNestingState('parent').targetNestingDepth).toBe(1)
+
+      parent.requestClose()
+
+      expect(manager.getNestingState('parent').targetNestingDepth).toBe(0)
+    })
+
     test('target falls back to committed depth when child closes before animation completes', () => {
       const { manager, machines } = buildNestingPair()
 

@@ -362,6 +362,95 @@ export const InitiallyOpen: Story = {
   ),
 }
 
+export const CloseParentFromChild: Story = {
+  name: 'Close Parent from Child',
+  render: () => {
+    const [parentOpen, setParentOpen] = useState(false)
+    const [childOpen, setChildOpen] = useState(false)
+
+    return (
+      <DrawerRegistryProvider>
+        <div className='h-screen w-full bg-slate-50 p-6 space-y-4'>
+          <div className='flex gap-4 items-center'>
+            <button
+              type='button'
+              className={triggerClassName}
+              onClick={() => setParentOpen(true)}
+            >
+              Open Parent
+            </button>
+            <p className='text-sm text-slate-600'>
+              Parent: <strong>{parentOpen ? 'Open' : 'Closed'}</strong> | Child:{' '}
+              <strong>{childOpen ? 'Open' : 'Closed'}</strong>
+            </p>
+          </div>
+
+          <Drawer.Root open={parentOpen} onOpenChange={setParentOpen}>
+            <Drawer.Portal>
+              <Overlay />
+              <NestedContent level={0}>
+                <DummyHandle />
+                <div className='space-y-4 px-6 pb-6'>
+                  <Title>Parent Drawer</Title>
+                  <Description>
+                    Open the child drawer, then close the parent from within the
+                    child. Both drawers should animate their close transitions.
+                  </Description>
+
+                  <Drawer.Root open={childOpen} onOpenChange={setChildOpen}>
+                    <button
+                      type='button'
+                      className={triggerClassName}
+                      onClick={() => setChildOpen(true)}
+                    >
+                      Open Child
+                    </button>
+                    <Drawer.Portal>
+                      <NestedContent level={1}>
+                        <DummyHandle />
+                        <div className='space-y-4 px-6 pb-6'>
+                          <Title>Child Drawer (Form)</Title>
+                          <Description>
+                            Simulates a form completion flow. Clicking "Complete
+                            & Close Parent" closes the parent drawer, which
+                            propagates close to this child drawer as well.
+                          </Description>
+                          <button
+                            type='button'
+                            className={closeButtonClassName}
+                            onClick={() => setChildOpen(false)}
+                          >
+                            Close Child Only
+                          </button>
+                          <button
+                            type='button'
+                            className={`${closeButtonClassName} bg-blue-600! text-white! hover:bg-blue-700!`}
+                            onClick={() => setParentOpen(false)}
+                          >
+                            Complete & Close Parent
+                          </button>
+                        </div>
+                      </NestedContent>
+                    </Drawer.Portal>
+                  </Drawer.Root>
+
+                  <button
+                    type='button'
+                    className={closeButtonClassName}
+                    onClick={() => setParentOpen(false)}
+                  >
+                    Close Parent
+                  </button>
+                </div>
+              </NestedContent>
+            </Drawer.Portal>
+          </Drawer.Root>
+        </div>
+      </DrawerRegistryProvider>
+    )
+  },
+}
+
 export const DifferentDirections: Story = {
   name: 'Mixed Directions',
   render: () => (
