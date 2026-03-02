@@ -147,7 +147,7 @@ export function useDrawerRoot({
   snapPoint,
   onSnapPointChange,
 }: DrawerRootAPI) {
-  const drawerId = useId()
+  const id = useId()
   const manager = useDrawerRegistry()
   const parentDrawerId = useParentDrawerId()
   const [desiredOpen, setDesiredOpen] = useControllableState({
@@ -185,17 +185,13 @@ export function useDrawerRoot({
       ),
   )
 
-  // ── Registry registration (opt-in) ────────────────────
-  // useIsomorphicEffect (layoutEffect on client) ensures registration happens before paint,
-  // so that nesting styles can be applied without a visible flash when defaultOpen is used.
   useIsomorphicEffect(() => {
-    if (!manager) return
     return manager.register({
-      id: drawerId,
+      id,
       parentId: parentDrawerId,
       machine,
     })
-  }, [manager, drawerId, parentDrawerId, machine])
+  }, [manager, id, parentDrawerId, machine])
 
   useEffect(() => {
     machine.updateConfig({
@@ -266,12 +262,12 @@ export function useDrawerRoot({
 
   const contextValue: DrawerContextValue = useMemo(
     () => ({
-      id: drawerId,
+      id,
       machine,
       contentRef,
       overlayRef,
     }),
-    [machine, drawerId],
+    [id, machine],
   )
 
   return {
@@ -313,7 +309,7 @@ export function useDrawerContent(props: {
 
   useNestingAnimation({ drawerId: id, elementRef: contentRef })
 
-  useIsomorphicEffect(() => {
+  useEffect(() => {
     if (!dragRegistry || !id || !contentRef.current) return
     return dragRegistry.register(id, {
       node: contentRef.current,
