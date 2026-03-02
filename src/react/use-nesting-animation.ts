@@ -1,8 +1,8 @@
 import { useContext, useRef, type RefObject } from 'react'
 import {
-  initAnimate,
   type SpringAnimateConfig,
 } from '../core/animation/animate'
+import { useAnimate } from './utils/use-animate'
 import {
   NestingPhase,
   getNestingDepth,
@@ -11,7 +11,6 @@ import {
 import { scaleForDepth } from '../core/nesting'
 import { DrawerIdContext, useDrawerRegistry } from './drawer-registry-context'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
-import { useStatic } from './utils/use-static'
 
 // ── Constants ────────────────────────────────────────────────
 
@@ -61,7 +60,7 @@ interface UseNestingAnimationProps {
 export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
   const drawerId = useContext(DrawerIdContext)
   const registry = useDrawerRegistry()
-  const animate = useStatic(() => initAnimate())
+  const animate = useAnimate()
   const prevStateRef = useRef<NestingState | null>(null)
 
   useIsomorphicEffect(() => {
@@ -160,7 +159,6 @@ export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
 
     return () => {
       unsubscribe()
-      animate.cleanup()
       // Reset styles on unmount
       if (element) {
         clearNestingStyles(element)
