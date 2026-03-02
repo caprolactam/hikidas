@@ -1,6 +1,5 @@
 import type { RefObject } from 'react'
 import {
-  type Phase,
   type DrawerMachine,
   type GetVariant,
   type ResolveSpringConfig,
@@ -29,21 +28,20 @@ function usePhaseAnimation({
   const animate = useAnimate()
 
   useIsomorphicEffect(() => {
-    function phaseAnimation(phase: Phase) {
-      if (!elementRef.current) return
-      const element = elementRef.current
+    if (!elementRef.current) return
+    const element = elementRef.current
 
-      const values = machine.registerTransitionPart(phase)
+    function phaseAnimation() {
+      const values = machine.registerTransitionPart()
       if (!values.isTransitionable) return
 
       const { phase: transitionPhase, reportComplete, reportCancel } = values
 
-      const snapshot = machine.snapshot
       const {
         config: { direction },
         transitionHint,
         snapMode,
-      } = snapshot
+      } = machine.snapshot
 
       animate
         .play(
@@ -65,7 +63,9 @@ function usePhaseAnimation({
         .catch(reportCancel)
     }
 
-    phaseAnimation(machine.snapshot.phase) // Animate to the correct position on mount
+    // Since the subscription to the machine occurs after the component has mounted,
+    // we need to invoke the phase animation manually on mount.
+    phaseAnimation()
 
     return machine.subscribePhaseChange(phaseAnimation)
   }, [machine, animate, getVariant, resolveSpringConfig, elementRef])

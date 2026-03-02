@@ -117,8 +117,8 @@ export class DrawerMachine {
     })
   }
 
-  registerTransitionPart = (phase: Phase) =>
-    this.#transitionCoordinator.register(phase)
+  registerTransitionPart = () =>
+    this.#transitionCoordinator.register(this.snapshot.phase)
 
   subscribePhaseChange = (listener: PhaseChangeListener): (() => void) => {
     this.#phaseChangeListeners.add(listener)
