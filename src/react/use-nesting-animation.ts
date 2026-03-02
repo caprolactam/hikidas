@@ -1,12 +1,13 @@
-import { useContext, useRef, type RefObject } from 'react'
+import { useRef, type RefObject } from 'react'
 import {
   NestingPhase,
   getNestingDepth,
   type SpringAnimateConfig,
   type NestingState,
+  type DrawerId,
   scaleForDepth,
 } from '../core'
-import { DrawerIdContext, useDrawerRegistry } from './drawer-registry-context'
+import { useDrawerRegistry } from './context'
 import { useAnimate } from './utils/use-animate'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
 
@@ -39,6 +40,7 @@ function clearNestingStyles(element: HTMLElement): void {
 // ── Hook ─────────────────────────────────────────────────────
 
 interface UseNestingAnimationProps {
+  drawerId: DrawerId
   elementRef: RefObject<HTMLElement | null>
 }
 
@@ -55,8 +57,10 @@ interface UseNestingAnimationProps {
  *
  * @internal
  */
-export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
-  const drawerId = useContext(DrawerIdContext)
+export function useNestingAnimation({
+  elementRef,
+  drawerId,
+}: UseNestingAnimationProps) {
   const registry = useDrawerRegistry()
   const animate = useAnimate()
   const prevStateRef = useRef<NestingState | null>(null)

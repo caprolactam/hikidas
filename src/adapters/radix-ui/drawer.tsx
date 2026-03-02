@@ -1,12 +1,11 @@
 import { Dialog } from 'radix-ui'
 import type React from 'react'
+import { DrawerRegistryProvider, DrawerProvider } from '../../react/provider'
 import {
   useDrawerContent,
   useDrawerOverlay,
-  DrawerProvider,
   type DrawerRootAPI,
-} from '../../react/drawer-adapter'
-import { DrawerRegistryProvider } from '../../react/drawer-registry-provider'
+} from '../../react/use-drawer'
 
 export { DrawerRegistryProvider }
 

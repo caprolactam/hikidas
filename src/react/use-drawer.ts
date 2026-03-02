@@ -1,5 +1,4 @@
 import {
-  useContext,
   useMemo,
   useRef,
   useCallback,
@@ -13,19 +12,14 @@ import {
   Phase,
   isOpenPhase,
   type DismissalDirection,
-  type DrawerId,
 } from '../core'
 import {
-  DrawerContext,
   type DrawerContextValue,
   useDrawerContext,
-} from './context'
-import {
-  DrawerIdContext,
+  useParentDrawerId,
   useDragRegistry,
   useDrawerRegistry,
-  useParentDrawerId,
-} from './drawer-registry-context'
+} from './context'
 import { useNestingAnimation } from './use-nesting-animation'
 import { useContentAnimation, useOverlayAnimation } from './use-phase-animation'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
@@ -139,37 +133,10 @@ export interface DrawerRootAPI {
    * @param snapPointIndex - The index of the new snap point
    */
   onSnapPointChange?: (snapPointIndex: number) => void
-  /**
-   * Unique identifier for this drawer instance when using DrawerRegistryProvider.
-   * If omitted, an auto-generated id is used. Only meaningful when a DrawerRegistryProvider
-   * is present in the ancestor tree — otherwise this prop is ignored.
-   */
-  drawerId?: DrawerId
 }
 
-interface DrawerProviderAPI {
-  isOpen: boolean
-  handleIsOpenChange: (open: boolean) => void
-}
-interface DrawerProviderProps extends DrawerRootAPI {
-  children: (api: DrawerProviderAPI) => React.ReactNode
-}
-
-export function DrawerProvider({ children, ...props }: DrawerProviderProps) {
-  const { isOpen, handleIsOpenChange, contextValue, drawerId } =
-    useDrawerRoot(props)
-
-  return (
-    <DrawerIdContext value={drawerId}>
-      <DrawerContext value={contextValue}>
-        {children({ isOpen, handleIsOpenChange })}
-        {__DEV__ ? <SnapPointsWarning snapPoints={props.snapPoints} /> : null}
-      </DrawerContext>
-    </DrawerIdContext>
-  )
-}
-
-function useDrawerRoot({
+/** @internal */
+export function useDrawerRoot({
   defaultOpen,
   open,
   onOpenChange,
@@ -179,10 +146,8 @@ function useDrawerRoot({
   defaultSnapPoint,
   snapPoint,
   onSnapPointChange,
-  drawerId: drawerIdProp,
 }: DrawerRootAPI) {
-  const autoId = useId()
-  const drawerId = drawerIdProp ?? autoId
+  const drawerId = useId()
   const manager = useDrawerRegistry()
   const parentDrawerId = useParentDrawerId()
   const [desiredOpen, setDesiredOpen] = useControllableState({
@@ -301,49 +266,19 @@ function useDrawerRoot({
 
   const contextValue: DrawerContextValue = useMemo(
     () => ({
+      id: drawerId,
       machine,
       contentRef,
       overlayRef,
     }),
-    [machine],
+    [machine, drawerId],
   )
 
   return {
     isOpen,
     handleIsOpenChange,
     contextValue,
-    drawerId,
   }
-}
-
-function SnapPointsWarning({ snapPoints }: Pick<DrawerRootAPI, 'snapPoints'>) {
-  const isBinaryMode = !snapPoints || snapPoints.length === 0
-
-  useEffect(() => {
-    if (isBinaryMode) return
-
-    // Validate range
-    if (snapPoints.some((p) => p <= 0 || p > 1)) {
-      console.warn(
-        '[Drawer] snapPoints must be in range greater than 0 and less than or equal to 1. Found:',
-        snapPoints,
-      )
-    }
-
-    // Validate ascending order
-    if (snapPoints.length <= 1) return
-    for (let i = 1; i < snapPoints.length; i++) {
-      if (snapPoints[i]! <= snapPoints[i - 1]!) {
-        console.warn(
-          '[Drawer] snapPoints must be in ascending order. Found:',
-          snapPoints,
-        )
-        break
-      }
-    }
-  }, [snapPoints, isBinaryMode])
-
-  return null
 }
 
 export function useDrawerOverlay(externalRef?: React.Ref<HTMLDivElement>) {
@@ -368,24 +303,23 @@ export function useDrawerContent(props: {
   ref: React.Ref<HTMLDivElement>
   style: React.CSSProperties
 } {
-  const { machine, contentRef, overlayRef } = useDrawerContext()
+  const { id, machine, contentRef, overlayRef } = useDrawerContext()
   const dragRegistry = useDragRegistry()
-  const drawerId = useContext(DrawerIdContext)
 
   useContentAnimation({
     machine,
     elementRef: contentRef,
   })
 
-  useNestingAnimation({ elementRef: contentRef })
+  useNestingAnimation({ drawerId: id, elementRef: contentRef })
 
   useIsomorphicEffect(() => {
-    if (!dragRegistry || !drawerId || !contentRef.current) return
-    return dragRegistry.register(drawerId, {
+    if (!dragRegistry || !id || !contentRef.current) return
+    return dragRegistry.register(id, {
       node: contentRef.current,
       overlayNode: overlayRef.current,
     })
-  }, [dragRegistry, drawerId, contentRef, overlayRef])
+  }, [dragRegistry, id, contentRef, overlayRef])
 
   const ref = useMergeRefs([props.ref, contentRef])
 
