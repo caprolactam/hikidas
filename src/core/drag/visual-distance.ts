@@ -1,5 +1,5 @@
 import type { Direction } from '../drawer/direction'
-import { getViewportSize } from '../utils/get-viewport-size'
+import { getViewportSize } from './get-viewport-size'
 
 /**
  * @internal

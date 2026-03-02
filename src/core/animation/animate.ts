@@ -1,4 +1,4 @@
-import { parseTransform } from '../utils/parse-transform'
+import { parseTransform } from './parse-transform'
 import { spring } from './spring'
 
 type TranslateKeys = 'x' | 'y' | 'z'

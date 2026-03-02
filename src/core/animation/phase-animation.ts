@@ -1,13 +1,10 @@
-import type {
-  AnimatableProperties,
-  SpringAnimateConfig,
-} from './animate'
 import type { Direction } from '../drawer/direction'
 import type { TransitionablePhase, TransitionHint } from '../drawer/reducer'
-import type { SnapMode } from '../drawer/snap-mode'
 import { Phase, TransitionKind } from '../drawer/reducer'
+import type { SnapMode } from '../drawer/snap-mode'
 import { getActiveSnapRatio } from '../drawer/snap-mode'
-import { parseTransform } from '../utils/parse-transform'
+import type { AnimatableProperties, SpringAnimateConfig } from './animate'
+import { parseTransform } from './parse-transform'
 
 // ── Types ─────────────────────────────────────────────────────
 

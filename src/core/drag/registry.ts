@@ -7,7 +7,7 @@ import {
 import { getNestingDepth } from '../nesting/reducer'
 import type { DrawerRegistry, DrawerId } from '../nesting/registry'
 import { scaleForDepth } from '../nesting/scale'
-import { getViewportSize } from '../utils/get-viewport-size'
+import { getViewportSize } from './get-viewport-size'
 import { initCacheStyling } from './style-cache'
 import { initVelocityTracker, type VelocityTracker } from './velocity-tracker'
 import { resolveDragVisualDistance } from './visual-distance'

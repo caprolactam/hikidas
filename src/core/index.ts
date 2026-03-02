@@ -35,4 +35,3 @@ export type {
   NestingTransitionHandle,
 } from './nesting/registry'
 export { scaleForDepth } from './nesting/scale'
-export { parseTransform } from './utils/parse-transform'
