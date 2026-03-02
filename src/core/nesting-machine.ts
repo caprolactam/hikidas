@@ -11,8 +11,6 @@ import {
   NESTING_RESTORE_FROM_DRAG,
 } from './nesting-reducer'
 
-// ── Types ────────────────────────────────────────────────────
-
 /** Handle returned by `registerTransition` for animation completion reporting. */
 export interface NestingTransitionHandle {
   /** Call when the scale animation has finished. */
@@ -20,8 +18,6 @@ export interface NestingTransitionHandle {
   /** Call when the animation is cancelled (e.g. unmount). */
   reportCancel: () => void
 }
-
-// ── Machine ──────────────────────────────────────────────────
 
 /** @internal */
 export class NestingMachine {
@@ -36,9 +32,6 @@ export class NestingMachine {
     return this.#state
   }
 
-  // ── Commands ────────────────────────────────────────────
-
-  /** Called by registry when computed target depth changes. */
   depthChanged(targetDepth: number): void {
     const prev = this.#state
     this.#dispatch({ type: NESTING_DEPTH_CHANGED, targetDepth })
@@ -55,31 +48,23 @@ export class NestingMachine {
     this.#generation = null
   }
 
-  /** Called by registry when descendant enters Dragging phase. */
   enterDragControlled(): void {
     this.#dispatch({ type: NESTING_ENTER_DRAG_CONTROLLED })
   }
 
-  /** Called by registry when descendant enters Settling (drag cancelled/ended). */
   restoreFromDrag(): void {
     this.#dispatch({ type: NESTING_RESTORE_FROM_DRAG })
   }
 
-  // ── Transition registration ─────────────────────────────
-
   /**
    * Register interest in an animation for the current transition.
    * Returns a handle, or `null` if no animation is needed.
-   *
-   * The generation symbol ensures that if the target changes mid-animation,
-   * older handles become stale and their `reportComplete` is ignored.
    */
   registerTransition(): NestingTransitionHandle | null {
     const { phase } = this.#state
 
     const needsTransition =
-      phase === NestingPhase.Scaling ||
-      phase === NestingPhase.DragRestoring
+      phase === NestingPhase.Scaling || phase === NestingPhase.DragRestoring
 
     if (!needsTransition) return null
 
@@ -99,8 +84,6 @@ export class NestingMachine {
       },
     }
   }
-
-  // ── Internal ────────────────────────────────────────────
 
   #dispatch(event: NestingEvent): void {
     const next = nestingReducer(this.#state, event)
