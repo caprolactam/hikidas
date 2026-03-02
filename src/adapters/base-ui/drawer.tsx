@@ -67,23 +67,9 @@ export function DrawerBackdrop({ ref, ...props }: DrawerBackdropProps) {
 
 interface DrawerPopupProps extends DialogPopupProps {}
 
-export function DrawerPopup({
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
-  onContextMenu,
-  style,
-  ref,
-  ...props
-}: DrawerPopupProps) {
+export function DrawerPopup({ style, ref, ...props }: DrawerPopupProps) {
   const contentProps = useDrawerContent({
     ref,
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    onPointerCancel,
-    onContextMenu,
     style,
   })
 

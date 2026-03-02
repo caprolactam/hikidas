@@ -77,23 +77,9 @@ export interface DrawerPanelProps extends Omit<
   'transition'
 > {}
 
-export function DrawerPanel({
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
-  onContextMenu,
-  style,
-  ref,
-  ...props
-}: DrawerPanelProps) {
+export function DrawerPanel({ style, ref, ...props }: DrawerPanelProps) {
   const contentProps = useDrawerContent({
     ref: ref as React.Ref<HTMLDivElement> | undefined,
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    onPointerCancel,
-    onContextMenu,
     style,
   })
 

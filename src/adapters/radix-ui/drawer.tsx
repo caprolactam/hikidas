@@ -66,23 +66,9 @@ export interface DrawerContentProps extends Omit<
   'forceMount'
 > {}
 
-export function DrawerContent({
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
-  onContextMenu,
-  style,
-  ref,
-  ...props
-}: DrawerContentProps) {
+export function DrawerContent({ style, ref, ...props }: DrawerContentProps) {
   const contentProps = useDrawerContent({
     ref,
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    onPointerCancel,
-    onContextMenu,
     style,
   })
 

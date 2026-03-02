@@ -363,19 +363,9 @@ export function useDrawerOverlay(externalRef?: React.Ref<HTMLDivElement>) {
 
 export function useDrawerContent(props: {
   ref?: React.Ref<HTMLDivElement>
-  onPointerDown?: React.PointerEventHandler
-  onPointerMove?: React.PointerEventHandler
-  onPointerUp?: React.PointerEventHandler
-  onPointerCancel?: React.PointerEventHandler
-  onContextMenu?: React.MouseEventHandler
   style?: React.CSSProperties
 }): {
   ref: React.Ref<HTMLDivElement>
-  onPointerDown?: React.PointerEventHandler
-  onPointerMove?: React.PointerEventHandler
-  onPointerUp?: React.PointerEventHandler
-  onPointerCancel?: React.PointerEventHandler
-  onContextMenu?: React.MouseEventHandler
   style: React.CSSProperties
 } {
   const { machine, contentRef, overlayRef } = useDrawerContext()
@@ -386,9 +376,9 @@ export function useDrawerContent(props: {
     machine,
     elementRef: contentRef,
   })
+
   useNestingAnimation({ elementRef: contentRef })
 
-  // Register element with DragRegistry for document-level drag handling
   useIsomorphicEffect(() => {
     if (!dragRegistry || !drawerId || !contentRef.current) return
     return dragRegistry.register(drawerId, {
@@ -401,11 +391,6 @@ export function useDrawerContent(props: {
 
   return {
     ref,
-    onPointerDown: props.onPointerDown,
-    onPointerMove: props.onPointerMove,
-    onPointerUp: props.onPointerUp,
-    onPointerCancel: props.onPointerCancel,
-    onContextMenu: props.onContextMenu,
     style: { touchAction: 'none', ...props.style },
   }
 }
