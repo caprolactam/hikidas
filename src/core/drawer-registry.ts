@@ -4,7 +4,6 @@ import {
   type NestingState,
   NestingPhase,
   getNestingDepth,
-  getTargetDepth,
 } from './nesting-reducer'
 import { Phase, isOpenPhase } from './reducer'
 
@@ -14,7 +13,6 @@ export {
   type NestingState,
   type NestingTransitionHandle,
   getNestingDepth,
-  getTargetDepth,
 }
 
 // ── Helpers ──────────────────────────────────────────────────

@@ -93,20 +93,20 @@ export function nestingReducer(
   switch (event.type) {
     case NESTING_DEPTH_CHANGED: {
       const { targetDepth } = event
-      const currentTarget = getTargetDepth(state)
-      if (targetDepth === currentTarget) return state
 
-      const currentDepth = getNestingDepth(state)
-      if (targetDepth === currentDepth) {
-        // The new target matches the committed depth, so no animation is needed.
-        // We use terminalState rather than returning `state` as-is, because the
-        // current phase may not be a stable terminal phase. For example, during
-        // Scaling { nestingDepth: 0, targetDepth: 1 }, if the target reverses
-        // back to 0 (the committed depth), we must snap to Inactive rather than
-        // leave stale Scaling state with an outdated targetDepth.
-        return terminalState(targetDepth)
+      if (state.phase === NestingPhase.Scaling) {
+        // in-flight-animation: no-op if same target, otherwise redirect.
+        if (state.targetDepth === targetDepth) return state
+        return {
+          phase: NestingPhase.Scaling,
+          nestingDepth: state.nestingDepth,
+          targetDepth,
+        }
       }
 
+      // Stable state: no-op if already at target, otherwise start animation.
+      const currentDepth = getNestingDepth(state)
+      if (currentDepth === targetDepth) return state
       return {
         phase: NestingPhase.Scaling,
         nestingDepth: currentDepth,
@@ -174,16 +174,4 @@ function terminalState(depth: number): NestingState {
  */
 export function getNestingDepth(state: NestingState): number {
   return state.phase === NestingPhase.Inactive ? 0 : state.nestingDepth
-}
-
-/**
- * @internal
- *
- * Extract the target depth for scaling states, or the committed depth otherwise.
- * Returns 0 for Inactive.
- */
-export function getTargetDepth(state: NestingState): number {
-  if (state.phase === NestingPhase.Inactive) return 0
-  if (state.phase === NestingPhase.Scaling) return state.targetDepth
-  return state.nestingDepth
 }

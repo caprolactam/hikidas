@@ -3,7 +3,11 @@ import {
   initAnimate,
   type SpringAnimateConfig,
 } from '../core/animation/animate'
-import { NestingPhase, getNestingDepth } from '../core/drawer-registry'
+import {
+  NestingPhase,
+  getNestingDepth,
+  type NestingState,
+} from '../core/drawer-registry'
 import { scaleForDepth } from '../core/nesting'
 import { DrawerIdContext, useDrawerRegistry } from './drawer-registry-context'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
@@ -58,7 +62,7 @@ export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
   const drawerId = useContext(DrawerIdContext)
   const registry = useDrawerRegistry()
   const animate = useStatic(() => initAnimate())
-  const prevPhaseRef = useRef<NestingPhase | null>(null)
+  const prevStateRef = useRef<NestingState | null>(null)
 
   useIsomorphicEffect(() => {
     if (!registry || !drawerId) return
@@ -67,7 +71,7 @@ export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
 
     // Apply initial nesting state without animation (e.g. defaultOpen on both parent and child)
     const initialState = registry.getNestingState(drawerId)
-    prevPhaseRef.current = initialState.phase
+    prevStateRef.current = initialState
 
     const initialDepth = getNestingDepth(initialState)
     if (initialDepth > 0 && element) {
@@ -80,9 +84,12 @@ export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
 
       const state = registry.getNestingState(drawerId)
 
-      // Only react when nesting phase actually changes
-      if (state.phase === prevPhaseRef.current) return
-      prevPhaseRef.current = state.phase
+      // Only react when nesting state actually changes (referential equality).
+      // The reducer returns the same object when nothing changed, but produces
+      // a new object when phase or target changes — including Scaling→Scaling
+      // with a different targetDepth.
+      if (state === prevStateRef.current) return
+      prevStateRef.current = state
 
       switch (state.phase) {
         case NestingPhase.Scaling: {

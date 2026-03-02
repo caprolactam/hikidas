@@ -1,11 +1,6 @@
 import { describe, expect, test, vi, beforeEach, assert } from 'vitest'
 import { DrawerMachine } from './drawer-machine'
-import {
-  DrawerRegistry,
-  NestingPhase,
-  getNestingDepth,
-  getTargetDepth,
-} from './drawer-registry'
+import { DrawerRegistry, NestingPhase } from './drawer-registry'
 import { Phase } from './reducer'
 
 /**
@@ -621,12 +616,10 @@ describe('DrawerRegistry', () => {
       const { manager } = buildNestingPair()
 
       const rootState = manager.getNestingState('root')
-      expect(getNestingDepth(rootState)).toBe(0)
-      expect(getTargetDepth(rootState)).toBe(0)
+      expect(rootState.phase).toBe(NestingPhase.Inactive)
 
       const childState = manager.getNestingState('child')
-      expect(getNestingDepth(childState)).toBe(0)
-      expect(getTargetDepth(childState)).toBe(0)
+      expect(childState.phase).toBe(NestingPhase.Inactive)
     })
 
     test('child opening sets targetNestingDepth on parent', () => {
@@ -635,8 +628,9 @@ describe('DrawerRegistry', () => {
       machines.child.requestOpen() // Closed -> Opening
 
       const rootState = manager.getNestingState('root')
-      expect(getNestingDepth(rootState)).toBe(0) // not yet committed
-      expect(getTargetDepth(rootState)).toBe(1)
+      assert(rootState.phase === NestingPhase.Scaling)
+      expect(rootState.nestingDepth).toBe(0) // not yet committed
+      expect(rootState.targetDepth).toBe(1)
     })
 
     test('child node itself remains at nesting depth 0', () => {
@@ -645,8 +639,7 @@ describe('DrawerRegistry', () => {
       machines.child.requestOpen()
 
       const childState = manager.getNestingState('child')
-      expect(getNestingDepth(childState)).toBe(0)
-      expect(getTargetDepth(childState)).toBe(0)
+      expect(childState.phase).toBe(NestingPhase.Inactive)
     })
 
     test('two-level nesting: grandchild opening deepens ancestor targets', () => {
@@ -655,15 +648,27 @@ describe('DrawerRegistry', () => {
       // Open child first
       machines.child.requestOpen()
 
-      expect(getTargetDepth(manager.getNestingState('root'))).toBe(1)
-      expect(getTargetDepth(manager.getNestingState('child'))).toBe(0)
+      {
+        const state = manager.getNestingState('root')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.targetDepth).toBe(1)
+      }
+      expect(manager.getNestingState('child').phase).toBe(NestingPhase.Inactive)
 
       // Now open grandchild
       machines.grandchild.requestOpen()
 
-      expect(getTargetDepth(manager.getNestingState('root'))).toBe(2)
-      expect(getTargetDepth(manager.getNestingState('child'))).toBe(1)
-      expect(getTargetDepth(manager.getNestingState('grandchild'))).toBe(0)
+      {
+        const state = manager.getNestingState('root')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.targetDepth).toBe(2)
+      }
+      {
+        const state = manager.getNestingState('child')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.targetDepth).toBe(1)
+      }
+      expect(manager.getNestingState('grandchild').phase).toBe(NestingPhase.Inactive)
     })
 
     test('child closing resets targetNestingDepth on parent', () => {
@@ -671,12 +676,20 @@ describe('DrawerRegistry', () => {
 
       // Open child
       machines.child.requestOpen()
-      expect(getTargetDepth(manager.getNestingState('root'))).toBe(1)
+      {
+        const state = manager.getNestingState('root')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.targetDepth).toBe(1)
+      }
 
       // Close child
       machines.child.requestClose() // Opening -> Closing
 
-      expect(getTargetDepth(manager.getNestingState('root'))).toBe(0)
+      {
+        const state = manager.getNestingState('root')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.targetDepth).toBe(0)
+      }
     })
 
     test('grandchild closing reduces ancestor depths by one', () => {
@@ -684,14 +697,30 @@ describe('DrawerRegistry', () => {
 
       machines.child.requestOpen()
       machines.grandchild.requestOpen()
-      expect(getTargetDepth(manager.getNestingState('root'))).toBe(2)
-      expect(getTargetDepth(manager.getNestingState('child'))).toBe(1)
+      {
+        const state = manager.getNestingState('root')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.targetDepth).toBe(2)
+      }
+      {
+        const state = manager.getNestingState('child')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.targetDepth).toBe(1)
+      }
 
       // Close grandchild
       machines.grandchild.requestClose()
 
-      expect(getTargetDepth(manager.getNestingState('root'))).toBe(1)
-      expect(getTargetDepth(manager.getNestingState('child'))).toBe(0)
+      {
+        const state = manager.getNestingState('root')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.targetDepth).toBe(1)
+      }
+      {
+        const state = manager.getNestingState('child')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.targetDepth).toBe(0)
+      }
     })
 
     test('registerNestingTransition returns handle when animation is needed', () => {
@@ -715,16 +744,20 @@ describe('DrawerRegistry', () => {
       const { manager, machines } = buildNestingPair()
 
       machines.child.requestOpen()
-      expect(getTargetDepth(manager.getNestingState('root'))).toBe(1)
-      expect(getNestingDepth(manager.getNestingState('root'))).toBe(0)
+      {
+        const state = manager.getNestingState('root')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.nestingDepth).toBe(0)
+        expect(state.targetDepth).toBe(1)
+      }
 
       const handle = manager.registerNestingTransition('root')
       assert(handle)
       handle.reportComplete()
 
       const rootState = manager.getNestingState('root')
-      expect(getNestingDepth(rootState)).toBe(1)
-      expect(getTargetDepth(rootState)).toBe(1)
+      assert(rootState.phase === NestingPhase.Active)
+      expect(rootState.nestingDepth).toBe(1)
     })
 
     test('reportComplete invalidates snapshot', () => {
@@ -766,12 +799,20 @@ describe('DrawerRegistry', () => {
 
       // Before first animation completes, grandchild opens → new target
       machines.grandchild.requestOpen()
-      expect(getTargetDepth(manager.getNestingState('root'))).toBe(2)
+      {
+        const state = manager.getNestingState('root')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.targetDepth).toBe(2)
+      }
 
       // First handle's reportComplete should be ignored
       firstHandle.reportComplete()
-      expect(getNestingDepth(manager.getNestingState('root'))).toBe(0) // not committed
-      expect(getTargetDepth(manager.getNestingState('root'))).toBe(2) // unchanged
+      {
+        const state = manager.getNestingState('root')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.nestingDepth).toBe(0) // not committed
+        expect(state.targetDepth).toBe(2) // unchanged
+      }
     })
 
     test('second handle works after first becomes stale', () => {
@@ -787,8 +828,9 @@ describe('DrawerRegistry', () => {
       assert(secondHandle)
       secondHandle.reportComplete()
 
-      expect(getNestingDepth(manager.getNestingState('root'))).toBe(2)
-      expect(getTargetDepth(manager.getNestingState('root'))).toBe(2)
+      const rootState = manager.getNestingState('root')
+      assert(rootState.phase === NestingPhase.Active)
+      expect(rootState.nestingDepth).toBe(2)
     })
 
     test('reportCancel does not commit nestingDepth', () => {
@@ -800,21 +842,33 @@ describe('DrawerRegistry', () => {
       assert(handle)
       handle.reportCancel()
 
-      expect(getNestingDepth(manager.getNestingState('root'))).toBe(0)
-      expect(getTargetDepth(manager.getNestingState('root'))).toBe(1) // unchanged
+      {
+        const state = manager.getNestingState('root')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.nestingDepth).toBe(0)
+        expect(state.targetDepth).toBe(1) // unchanged
+      }
     })
 
     test('unregistering child recalculates ancestor nesting depth', () => {
       const { manager, machines } = buildNestingPair()
 
       machines.child.requestOpen()
-      expect(getTargetDepth(manager.getNestingState('root'))).toBe(1)
+      {
+        const state = manager.getNestingState('root')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.targetDepth).toBe(1)
+      }
 
       // Simulate the handle commit first
       const handle = manager.registerNestingTransition('root')
       assert(handle)
       handle.reportComplete()
-      expect(getNestingDepth(manager.getNestingState('root'))).toBe(1)
+      {
+        const state = manager.getNestingState('root')
+        assert(state.phase === NestingPhase.Active)
+        expect(state.nestingDepth).toBe(1)
+      }
 
       // Now unregister the child — no open descendants remain
       // First we need the unregister function, so re-build the scenario
@@ -830,12 +884,20 @@ describe('DrawerRegistry', () => {
       })
 
       childMachine.requestOpen()
-      expect(getTargetDepth(manager2.getNestingState('root'))).toBe(1)
+      {
+        const state = manager2.getNestingState('root')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.targetDepth).toBe(1)
+      }
 
       unregChild()
 
       // After unregister, root has no open descendants
-      expect(getTargetDepth(manager2.getNestingState('root'))).toBe(0)
+      {
+        const state = manager2.getNestingState('root')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.targetDepth).toBe(0)
+      }
     })
 
     test('nesting fields appear in DrawerNodeView from getNode', () => {
@@ -845,8 +907,9 @@ describe('DrawerRegistry', () => {
 
       const rootView = manager.getNode('root')
       assert(rootView)
-      expect(getNestingDepth(rootView.nesting)).toBe(0)
-      expect(getTargetDepth(rootView.nesting)).toBe(1)
+      assert(rootView.nesting.phase === NestingPhase.Scaling)
+      expect(rootView.nesting.nestingDepth).toBe(0)
+      expect(rootView.nesting.targetDepth).toBe(1)
     })
 
     test('nesting fields appear in getSnapshot', () => {
@@ -857,14 +920,14 @@ describe('DrawerRegistry', () => {
       const snapshot = manager.getSnapshot()
       const rootSnap = snapshot.find((n) => n.id === 'root')
       assert(rootSnap)
-      expect(getTargetDepth(rootSnap.nesting)).toBe(1)
+      assert(rootSnap.nesting.phase === NestingPhase.Scaling)
+      expect(rootSnap.nesting.targetDepth).toBe(1)
     })
 
     test('getNestingState returns default for unregistered id', () => {
       const manager = new DrawerRegistry()
       const state = manager.getNestingState('nonexistent')
-      expect(getNestingDepth(state)).toBe(0)
-      expect(getTargetDepth(state)).toBe(0)
+      expect(state.phase).toBe(NestingPhase.Inactive)
     })
 
     test('registerNestingTransition returns null for unregistered id', () => {
@@ -889,8 +952,8 @@ describe('DrawerRegistry', () => {
 
       // Root should already see child as open
       const rootState = manager.getNestingState('root')
-      expect(getNestingDepth(rootState)).toBe(1)
-      expect(getTargetDepth(rootState)).toBe(1)
+      assert(rootState.phase === NestingPhase.Active)
+      expect(rootState.nestingDepth).toBe(1)
     })
 
     test('subscribe listener fires on nesting state change', () => {
@@ -932,14 +995,26 @@ describe('DrawerRegistry', () => {
       })
 
       // root nestingDepth = 2 (child + grandchild both open)
-      expect(getTargetDepth(manager.getNestingState('root'))).toBe(2)
-      expect(getTargetDepth(manager.getNestingState('child'))).toBe(1)
+      {
+        const state = manager.getNestingState('root')
+        assert(state.phase === NestingPhase.Active)
+        expect(state.nestingDepth).toBe(2)
+      }
+      {
+        const state = manager.getNestingState('child')
+        assert(state.phase === NestingPhase.Active)
+        expect(state.nestingDepth).toBe(1)
+      }
 
       // Remove child — grandchild still exists as orphan with parentId='child'
       // but child entry is gone, so root can't reach grandchild
       unregChild()
 
-      expect(getTargetDepth(manager.getNestingState('root'))).toBe(0)
+      {
+        const state = manager.getNestingState('root')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.targetDepth).toBe(0)
+      }
     })
 
     test('sibling open warning in dev mode', () => {
@@ -1085,11 +1160,19 @@ describe('DrawerRegistry', () => {
       manager.register({ id: 'parent', parentId: null, machine: parent })
       manager.register({ id: 'child', parentId: 'parent', machine: child })
 
-      expect(getTargetDepth(manager.getNestingState('parent'))).toBe(1)
+      {
+        const state = manager.getNestingState('parent')
+        assert(state.phase === NestingPhase.Active)
+        expect(state.nestingDepth).toBe(1)
+      }
 
       parent.requestClose()
 
-      expect(getTargetDepth(manager.getNestingState('parent'))).toBe(0)
+      {
+        const state = manager.getNestingState('parent')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.targetDepth).toBe(0)
+      }
     })
 
     test('target falls back to committed depth when child closes before animation completes', () => {
@@ -1097,16 +1180,21 @@ describe('DrawerRegistry', () => {
 
       // Open child -> root target becomes 1
       machines.child.requestOpen()
-      expect(getTargetDepth(manager.getNestingState('root'))).toBe(1)
-      expect(getNestingDepth(manager.getNestingState('root'))).toBe(0)
+      {
+        const state = manager.getNestingState('root')
+        assert(state.phase === NestingPhase.Scaling)
+        expect(state.nestingDepth).toBe(0)
+        expect(state.targetDepth).toBe(1)
+      }
 
       // Close child before root's scale animation was registered
       machines.child.requestClose()
 
-      // Target should be back to 0 and since nestingDepth was 0 too, no animation needed
+      // Target reverses back to nestingDepth — animation should redirect to 0
       const rootState = manager.getNestingState('root')
-      expect(getTargetDepth(rootState)).toBe(0)
-      expect(getNestingDepth(rootState)).toBe(0)
+      assert(rootState.phase === NestingPhase.Scaling)
+      expect(rootState.nestingDepth).toBe(0)
+      expect(rootState.targetDepth).toBe(0)
     })
   })
 })
