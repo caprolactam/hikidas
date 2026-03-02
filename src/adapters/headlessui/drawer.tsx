@@ -12,6 +12,9 @@ import {
   useDrawerOverlay,
   type DrawerRootAPI,
 } from '../../react/drawer-adapter'
+import { DrawerRegistryProvider } from '../../react/drawer-registry-provider'
+
+export { DrawerRegistryProvider }
 
 export interface DrawerRootProps
   extends
@@ -99,6 +102,7 @@ export interface DrawerCloseProps extends React.ComponentPropsWithRef<
 export const DrawerClose = CloseButton
 
 export const Drawer = {
+  Registry: DrawerRegistryProvider,
   Root: DrawerRoot,
   Backdrop: DrawerBackdrop,
   Panel: DrawerPanel,

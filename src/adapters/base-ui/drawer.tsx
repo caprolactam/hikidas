@@ -16,6 +16,9 @@ import {
   useDrawerOverlay,
   type DrawerRootAPI,
 } from '../../react/drawer-adapter'
+import { DrawerRegistryProvider } from '../../react/drawer-registry-provider'
+
+export { DrawerRegistryProvider }
 
 export interface DrawerRootProps<Payload = unknown>
   extends
@@ -100,6 +103,7 @@ export interface DrawerCloseProps extends DialogCloseProps {}
 export const DrawerClose = Dialog.Close
 
 export const Drawer = {
+  Registry: DrawerRegistryProvider,
   Root: DrawerRoot,
   Trigger: DrawerTrigger,
   Portal: DrawerPortal,

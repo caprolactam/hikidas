@@ -6,6 +6,9 @@ import {
   DrawerProvider,
   type DrawerRootAPI,
 } from '../../react/drawer-adapter'
+import { DrawerRegistryProvider } from '../../react/drawer-registry-provider'
+
+export { DrawerRegistryProvider }
 
 export interface DrawerRootProps
   extends
@@ -108,6 +111,7 @@ export interface DrawerDescriptionProps extends React.ComponentPropsWithRef<
 export const DrawerDescription = Dialog.Description
 
 export const Drawer = {
+  Registry: DrawerRegistryProvider,
   Root: DrawerRoot,
   Trigger: DrawerTrigger,
   Portal: DrawerPortal,
