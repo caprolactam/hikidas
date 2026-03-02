@@ -12,7 +12,6 @@ import { DrawerMachine } from '../core/drawer-machine'
 import type { DrawerId } from '../core/drawer-registry'
 import { Phase, isOpenPhase } from '../core/reducer'
 import type { DismissalDirection } from '../core/types'
-import { composeEventHandlers } from '../core/utils/compose-event-handlers'
 import {
   DrawerContext,
   type DrawerContextValue,
@@ -28,7 +27,6 @@ import {
   useContentAnimation,
   useOverlayAnimation,
 } from './use-drawer-animation'
-import { useDrawerGesture } from './use-drawer-gesture'
 import { useNestingAnimation } from './use-nesting-animation'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
 import { useMergeRefs } from './utils/use-merge-refs'
@@ -373,11 +371,11 @@ export function useDrawerContent(props: {
   style?: React.CSSProperties
 }): {
   ref: React.Ref<HTMLDivElement>
-  onPointerDown: React.PointerEventHandler
-  onPointerMove: React.PointerEventHandler
-  onPointerUp: React.PointerEventHandler
-  onPointerCancel: React.PointerEventHandler
-  onContextMenu: React.MouseEventHandler
+  onPointerDown?: React.PointerEventHandler
+  onPointerMove?: React.PointerEventHandler
+  onPointerUp?: React.PointerEventHandler
+  onPointerCancel?: React.PointerEventHandler
+  onContextMenu?: React.MouseEventHandler
   style: React.CSSProperties
 } {
   const { machine, contentRef, overlayRef } = useDrawerContext()
@@ -390,7 +388,7 @@ export function useDrawerContent(props: {
   })
   useNestingAnimation({ elementRef: contentRef })
 
-  // Register element with DragRegistry for drag-time ancestor scale control
+  // Register element with DragRegistry for document-level drag handling
   useIsomorphicEffect(() => {
     if (!dragRegistry || !drawerId || !contentRef.current) return
     return dragRegistry.register(drawerId, {
@@ -399,33 +397,15 @@ export function useDrawerContent(props: {
     })
   }, [dragRegistry, drawerId, contentRef, overlayRef])
 
-  const handlers = useDrawerGesture({
-    machine,
-    contentRef,
-    overlayRef,
-  })
-
   const ref = useMergeRefs([props.ref, contentRef])
 
   return {
     ref,
-    onPointerDown: composeEventHandlers(
-      props.onPointerDown,
-      handlers.onPointerDown,
-    ),
-    onPointerMove: composeEventHandlers(
-      props.onPointerMove,
-      handlers.onPointerMove,
-    ),
-    onPointerUp: composeEventHandlers(props.onPointerUp, handlers.onPointerUp),
-    onPointerCancel: composeEventHandlers(
-      props.onPointerCancel,
-      handlers.onPointerCancel,
-    ),
-    onContextMenu: composeEventHandlers(
-      props.onContextMenu,
-      handlers.onContextMenu,
-    ),
+    onPointerDown: props.onPointerDown,
+    onPointerMove: props.onPointerMove,
+    onPointerUp: props.onPointerUp,
+    onPointerCancel: props.onPointerCancel,
+    onContextMenu: props.onContextMenu,
     style: { touchAction: 'none', ...props.style },
   }
 }

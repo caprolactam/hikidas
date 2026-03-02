@@ -1,7 +1,38 @@
+import { initCacheStyling } from './drag/style-cache'
+import {
+  initVelocityTracker,
+  type VelocityTracker,
+} from './drag/velocity-tracker'
+import { resolveDragVisualDistance } from './drag/visual-distance'
 import type { DrawerRegistry, DrawerId } from './drawer-registry'
 import { getNestingDepth } from './nesting-reducer'
 import { scaleForDepth } from './nesting'
 import { Phase } from './reducer'
+import {
+  getActiveSnapRatio,
+  getMaxSnapRatio,
+  getMinSnapRatio,
+} from './snap-mode'
+import { getViewportSize } from './utils/get-viewport-size'
+
+// ── Constants ─────────────────────────────────────────────────
+
+const CONTENT_STYLES_IN_DRAGGING: Record<string, string> = {
+  transition: 'none',
+  userSelect: 'none',
+}
+
+const OVERLAY_STYLES_IN_DRAGGING: Record<string, string> = {
+  transition: 'none',
+}
+
+const DRAG_START_MIN_DISTANCE_PX: Record<string, number> = {
+  mouse: 2,
+  touch: 10,
+  pen: 2,
+}
+
+const DEFAULT_DRAG_START_MIN_DISTANCE_PX = 10
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -25,15 +56,14 @@ interface AncestorEntry {
  * Inspired by @neodrag's DraggableFactory: registers a single set of
  * pointer-event listeners on `document.documentElement` and routes events
  * to the appropriate drawer instance. Framework-agnostic — the React
- * layer only calls `register()` / cleanup.
+ * (or Vue, Svelte, etc.) layer only calls `register()` / cleanup.
  *
- * Current scope (phase 1):
- * - Element instance management (drawerId → HTMLElement)
+ * Handles:
+ * - Pointer event routing via document-level delegation
+ * - Tracking → Dragging threshold detection
+ * - Drag visual distance (rubber band, clamping) and DOM updates
+ * - Velocity tracking and drag end evaluation
  * - Ancestor scale interpolation during drag
- *
- * Future scope:
- * - Full drag physics (velocity tracking, rubber band, etc.)
- *   currently handled by useDrawerGesture
  *
  * @internal
  */
@@ -45,7 +75,18 @@ export class DragRegistry {
 
   #activeDrawerId: DrawerId | null = null
   #activePointerId: number | null = null
+  /** Pointer position at pointerdown — used for ancestor scale interpolation (never reset). */
   #initialPointerPos: { x: number; y: number } | null = null
+
+  // ── Drag session state ─────────────────────────────────────
+
+  #pointerCapture: PointerCapture | null = null
+  /** Pointer coords reset at Tracking→Dragging transition to avoid visual jump. */
+  #dragStartCoords: PointerCoords | null = null
+  #velocityTracker: VelocityTracker | null = null
+  #cachedDrawerRect: DOMRect | null = null
+  #dragVisualDist: number | null = null
+  #styleCache = initCacheStyling()
 
   // ── Ancestor scale cache ───────────────────────────────────
 
@@ -88,7 +129,10 @@ export class DragRegistry {
     target.addEventListener('pointerup', this.#handlePointerUp, {
       passive: true,
     })
-    target.addEventListener('pointercancel', this.#handlePointerUp, {
+    target.addEventListener('pointercancel', this.#handlePointerCancel, {
+      passive: true,
+    })
+    target.addEventListener('contextmenu', this.#handleContextMenu, {
       passive: true,
     })
 
@@ -104,27 +148,289 @@ export class DragRegistry {
     if (!drawerId) return
     if (!this.#registry.isFrontmost(drawerId)) return
 
+    const instance = this.#instances.get(drawerId)!
+    const targetNode = e.target
+    if (!(targetNode instanceof HTMLElement)) return
+
+    if (
+      !isDragInteractionAllowed({ rootNode: instance.node, targetNode })
+    ) {
+      return
+    }
+
+    const machine = this.#registry.getMachine(drawerId)
+    if (!machine) return
+
+    const acceptedTransition = machine.startTracking()
+    if (!acceptedTransition) return
+
     this.#activeDrawerId = drawerId
     this.#activePointerId = e.pointerId
     this.#initialPointerPos = { x: e.clientX, y: e.clientY }
+    this.#pointerCapture = createPointerCapture({
+      target: targetNode,
+      pointerId: e.pointerId,
+    })
+    this.#dragStartCoords = initPointerCoords(e)
   }
 
   #handlePointerMove = (e: PointerEvent): void => {
     if (this.#activePointerId !== e.pointerId) return
     if (!this.#activeDrawerId || !this.#initialPointerPos) return
 
+    if (!this.#pointerCapture?.isSamePointer(e.pointerId)) return
+    if (!this.#dragStartCoords) return
+
     const machine = this.#registry.getMachine(this.#activeDrawerId)
-    if (!machine || machine.snapshot.phase !== Phase.Dragging) return
+    if (!machine) return
+
+    const {
+      phase,
+      snapMode,
+      config: { direction, disableDragDismiss },
+    } = machine.snapshot
+
+    if (!(phase === Phase.Tracking || phase === Phase.Dragging)) return
+
+    const instance = this.#instances.get(this.#activeDrawerId)!
+    const pointerPos = { x: e.clientX, y: e.clientY }
+    const draggedDistance = this.#dragStartCoords.calcDraggedDistance(pointerPos)
+
+    switch (phase) {
+      case Phase.Tracking: {
+        const highlightedText = window.getSelection()?.toString()
+        // User doesn't want to drag, but wants to select text
+        if (highlightedText && highlightedText.length > 0) {
+          machine.cancelTracking()
+          this.#endDragSession()
+          return
+        }
+
+        const isAcceptedTransition = machine.startDrag({
+          draggedDistance,
+          dragStartMinDistancePx:
+            DRAG_START_MIN_DISTANCE_PX[e.pointerType] ??
+            DEFAULT_DRAG_START_MIN_DISTANCE_PX,
+        })
+
+        if (isAcceptedTransition) {
+          // Reset initial position to current so that drawer avoids visual jump
+          this.#dragStartCoords = initPointerCoords(e)
+          this.#velocityTracker = initVelocityTracker({
+            timeStamp: e.timeStamp,
+            pointerOffset: 0,
+          })
+          this.#cachedDrawerRect = instance.node.getBoundingClientRect()
+
+          this.#styleCache.set(instance.node, CONTENT_STYLES_IN_DRAGGING)
+          if (instance.overlayNode) {
+            this.#styleCache.set(
+              instance.overlayNode,
+              OVERLAY_STYLES_IN_DRAGGING,
+            )
+          }
+        }
+        break
+      }
+      case Phase.Dragging: {
+        if (!this.#velocityTracker) return
+        if (!this.#cachedDrawerRect) return
+
+        const currentSnapRatio = getActiveSnapRatio(snapMode)
+        const drawerSize = direction.sizeOnAxis(this.#cachedDrawerRect)
+
+        // Rubber band thresholds: free-drag distance before rubber band kicks in.
+        // Opening: from current snap point to the maximum snap point.
+        //   → 0 at the last snap point (or binary mode) = immediate rubber band.
+        // Dismiss: null if dismiss is enabled (no rubber band);
+        //   otherwise from current snap point to the minimum snap point.
+        //   → 0 at the first snap point = immediate rubber band.
+        const maxSnapRatio = getMaxSnapRatio(snapMode)
+        const minSnapRatio = getMinSnapRatio(snapMode)
+        const openingRubberBandThreshold =
+          drawerSize * (maxSnapRatio - currentSnapRatio)
+        const dismissRubberBandThreshold = disableDragDismiss
+          ? drawerSize * (currentSnapRatio - minSnapRatio)
+          : null
+
+        const dragVisualDist = resolveDragVisualDistance({
+          dragDelta: draggedDistance,
+          direction,
+          dismissRubberBandThreshold,
+          openingRubberBandThreshold,
+          drawerRect: this.#cachedDrawerRect,
+        })
+        this.#dragVisualDist = dragVisualDist
+
+        this.#velocityTracker.record({
+          timeStamp: e.timeStamp,
+          pointerOffset: direction.projectOnDismissAxis(draggedDistance),
+        })
+
+        // Base offset from snap point (in dismiss-positive space)
+        // ratio=1.0 (fully open) → baseOffset=0
+        // ratio=0.5 → baseOffset = 50% of drawer size toward dismiss
+        const baseOffsetDismissPositive = drawerSize * (1 - currentSnapRatio)
+        const totalVisualDist = baseOffsetDismissPositive + dragVisualDist
+
+        const { x, y } = direction.dismissAxisToTranslate(totalVisualDist)
+        instance.node.style.transform = `translateX(${x}px) translateY(${y}px)`
+
+        if (instance.overlayNode) {
+          const currentRatio = 1 - totalVisualDist / drawerSize
+          const opacity = Math.min(1, currentRatio)
+          instance.overlayNode.style.opacity = `${opacity}`
+        }
+
+        // ── Ancestor scale interpolation ──────────────────────
+        this.#updateAncestorScalesFromPointer(e, direction, instance)
+
+        break
+      }
+      default:
+        phase satisfies never
+    }
+  }
+
+  #handlePointerUp = (e: PointerEvent): void => {
+    if (this.#activePointerId !== e.pointerId) return
+    if (!this.#activeDrawerId) return
+
+    const machine = this.#registry.getMachine(this.#activeDrawerId)
+    if (!machine) {
+      this.#endDragSession()
+      return
+    }
+
+    const {
+      phase,
+      config: { direction },
+    } = machine.snapshot
+
+    if (!(phase === Phase.Tracking || phase === Phase.Dragging)) {
+      this.#endDragSession()
+      return
+    }
+
+    const instance = this.#instances.get(this.#activeDrawerId)!
+
+    switch (phase) {
+      case Phase.Tracking:
+        machine.cancelTracking()
+        break
+      case Phase.Dragging: {
+        // velocityTracker initialized in the transition from Tracking to Dragging,
+        // so validate existence in Dragging phase, not at head of the function
+        if (!this.#velocityTracker) return
+        // dragVisualDist sometimes set to falsy value like 0, so check null explicitly
+        if (this.#dragVisualDist === null) return
+
+        // Suppress click event after dragging to prevent accidental clicks
+        if (e.target instanceof EventTarget) {
+          e.target.addEventListener(
+            'click',
+            (event) => {
+              event.stopPropagation()
+            },
+            { once: true, capture: true },
+          )
+        }
+
+        const velocity = this.#velocityTracker.end(e.timeStamp)
+
+        this.#styleCache.reset(instance.node)
+        if (instance.overlayNode) {
+          this.#styleCache.reset(instance.overlayNode)
+        }
+
+        // Drawer size is capped at viewport size so dragDistanceRatio stays in a reasonable range
+        const drawerSize = direction.sizeOnAxis(
+          calculateConstrainedDrawerSize(instance.node.getBoundingClientRect()),
+        )
+        const dragDistanceRatio =
+          drawerSize === 0 ? 0 : this.#dragVisualDist / drawerSize
+
+        machine.endDrag({
+          velocityPxPerSec: velocity?.velocityPxPerSec ?? 0,
+          dragDistanceRatio,
+          drawerSize,
+          isVelocityStale: velocity === null,
+        })
+        break
+      }
+      default:
+        phase satisfies never
+    }
+
+    this.#endDragSession()
+  }
+
+  #handlePointerCancel = (e: PointerEvent): void => {
+    if (this.#activePointerId !== e.pointerId) return
+    this.#cancelGesture()
+  }
+
+  #handleContextMenu = (): void => {
+    if (this.#activeDrawerId === null) return
+    this.#cancelGesture()
+  }
+
+  // ── Gesture cancellation ────────────────────────────────────
+
+  #cancelGesture(): void {
+    if (!this.#activeDrawerId) return
+
+    const machine = this.#registry.getMachine(this.#activeDrawerId)
+    if (!machine) {
+      this.#endDragSession()
+      return
+    }
+
+    const { phase } = machine.snapshot
+    if (!(phase === Phase.Tracking || phase === Phase.Dragging)) {
+      this.#endDragSession()
+      return
+    }
+
+    const instance = this.#instances.get(this.#activeDrawerId)!
+
+    switch (phase) {
+      case Phase.Tracking:
+        machine.cancelTracking()
+        break
+      case Phase.Dragging:
+        this.#styleCache.reset(instance.node)
+        if (instance.overlayNode) {
+          this.#styleCache.reset(instance.overlayNode)
+        }
+        machine.cancelDrag()
+        break
+      default:
+        phase satisfies never
+    }
+
+    this.#endDragSession()
+  }
+
+  // ── Ancestor scale control ─────────────────────────────────
+
+  /**
+   * Compute drag progress from raw pointer distance and update ancestor scales.
+   * Uses #initialPointerPos (set at pointerdown, never reset) for raw distance.
+   */
+  #updateAncestorScalesFromPointer(
+    e: PointerEvent,
+    direction: { projectOnDismissAxis: (d: { x: number; y: number }) => number; sizeOnAxis: (r: DOMRect) => number },
+    instance: DraggableInstance,
+  ): void {
+    if (!this.#initialPointerPos) return
 
     // Resolve ancestors on the first Dragging-phase move
     if (!this.#ancestorCache) {
-      this.#resolveAncestors(this.#activeDrawerId)
+      this.#resolveAncestors(this.#activeDrawerId!)
       if (!this.#ancestorCache!.length) return
     }
 
-    // Compute drag progress from raw pointer distance (no rubber band)
-    const { direction } = machine.snapshot.config
-    const instance = this.#instances.get(this.#activeDrawerId)!
     const drawerSize = direction.sizeOnAxis(
       instance.node.getBoundingClientRect(),
     )
@@ -138,27 +444,6 @@ export class DragRegistry {
 
     this.#updateAncestorScales(dragProgress)
   }
-
-  /**
-   * On pointer up, reset drag state.
-   *
-   * No ancestor scale restoration needed here — that's driven by
-   * NestingPhase transitions in DrawerRegistry:
-   * - Dismiss (Closing): NestingPhase → Scaling → useNestingAnimation springs to target
-   * - Cancel (Settling): NestingPhase → DragRestoring → useNestingAnimation springs back
-   *
-   * Timing note: useDrawerGesture's element-level pointerup fires before
-   * this document-level handler (event bubbling order). By the time this
-   * runs, machine.endDrag() has already been called and the phase has
-   * transitioned to Closing or Settling, which triggers #onPhaseChange
-   * in DrawerRegistry to update the NestingPhase accordingly.
-   */
-  #handlePointerUp = (e: PointerEvent): void => {
-    if (this.#activePointerId !== e.pointerId) return
-    this.#resetDragState()
-  }
-
-  // ── Ancestor scale control ─────────────────────────────────
 
   #resolveAncestors(drawerId: DrawerId): void {
     const ancestors = this.#registry.getAncestors(drawerId)
@@ -215,9 +500,16 @@ export class DragRegistry {
     return null
   }
 
-  // ── State reset ────────────────────────────────────────────
+  // ── Session cleanup ─────────────────────────────────────────
 
-  #resetDragState(): void {
+  #endDragSession(): void {
+    this.#pointerCapture?.release()
+    this.#pointerCapture = null
+    this.#dragStartCoords = null
+    this.#velocityTracker?.cancel()
+    this.#velocityTracker = null
+    this.#cachedDrawerRect = null
+    this.#dragVisualDist = null
     this.#activeDrawerId = null
     this.#activePointerId = null
     this.#initialPointerPos = null
@@ -232,10 +524,105 @@ export class DragRegistry {
       target.removeEventListener('pointerdown', this.#handlePointerDown)
       target.removeEventListener('pointermove', this.#handlePointerMove)
       target.removeEventListener('pointerup', this.#handlePointerUp)
-      target.removeEventListener('pointercancel', this.#handlePointerUp)
+      target.removeEventListener('pointercancel', this.#handlePointerCancel)
+      target.removeEventListener('contextmenu', this.#handleContextMenu)
       this.#listenersInitialized = false
     }
     this.#instances.clear()
-    this.#resetDragState()
+    this.#endDragSession()
+  }
+}
+
+// ── Helper functions ──────────────────────────────────────────
+
+function isDragInteractionAllowed({
+  rootNode,
+  targetNode,
+}: {
+  rootNode: HTMLElement
+  targetNode: HTMLElement
+}): boolean {
+  if (!rootNode.contains(targetNode)) return false
+
+  if (
+    targetNode.hasAttribute('data-drawer-no-drag') ||
+    targetNode.closest('[data-drawer-no-drag]')
+  ) {
+    return false
+  }
+
+  // Fixes https://github.com/emilkowalski/vaul/issues/483
+  const tagName = targetNode.tagName
+  if (
+    tagName === 'SELECT' ||
+    tagName === 'INPUT' ||
+    tagName === 'TEXTAREA' ||
+    targetNode.isContentEditable
+  ) {
+    return false
+  }
+
+  let element: HTMLElement | null = targetNode
+  while (element) {
+    if (
+      element.getAttribute('role') === 'dialog' ||
+      element === document.documentElement
+    ) {
+      break
+    }
+
+    if (element.scrollHeight > element.clientHeight) {
+      if (element.scrollTop !== 0) {
+        return false
+      }
+    }
+
+    element = element.parentElement
+  }
+
+  return true
+}
+
+type PointerCapture = ReturnType<typeof createPointerCapture>
+
+function createPointerCapture(props: {
+  target: HTMLElement
+  pointerId: number
+}) {
+  props.target.setPointerCapture(props.pointerId)
+
+  return {
+    isSamePointer(pointerId: number) {
+      return props.pointerId === pointerId
+    },
+    release() {
+      try {
+        props.target.releasePointerCapture(props.pointerId)
+      } catch {}
+    },
+  }
+}
+
+type PointerCoords = ReturnType<typeof initPointerCoords>
+
+function initPointerCoords(event: { clientX: number; clientY: number }) {
+  const initialCoords = { x: event.clientX, y: event.clientY }
+
+  return {
+    calcDraggedDistance: (coords: { x: number; y: number }) => {
+      return {
+        x: coords.x - initialCoords.x,
+        y: coords.y - initialCoords.y,
+      }
+    },
+  }
+}
+
+function calculateConstrainedDrawerSize(rect: DOMRect) {
+  const viewport = getViewportSize()
+
+  return {
+    width: Math.min(rect.width, viewport.width),
+    height: Math.min(rect.height, viewport.height),
   }
 }
