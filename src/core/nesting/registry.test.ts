@@ -1,7 +1,7 @@
 import { describe, expect, test, vi, beforeEach, assert } from 'vitest'
-import { DrawerMachine } from './drawer-machine'
-import { DrawerRegistry, NestingPhase } from './drawer-registry'
-import { Phase } from './reducer'
+import { DrawerMachine } from '../drawer/machine'
+import { Phase } from '../drawer/reducer'
+import { DrawerRegistry, NestingPhase } from './registry'
 
 /**
  * Creates a DrawerMachine with sensible defaults for testing.

@@ -1,4 +1,4 @@
-import type { Direction } from '../direction'
+import type { Direction } from '../drawer/direction'
 import { getViewportSize } from '../utils/get-viewport-size'
 
 /**

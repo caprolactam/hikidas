@@ -2,7 +2,8 @@ import { useRef, type RefObject } from 'react'
 import {
   NestingPhase,
   getNestingDepth,
-  type SpringAnimateConfig,
+  NESTING_SPRING_CONFIG,
+  parseScale,
   type NestingState,
   type DrawerId,
   scaleForDepth,
@@ -11,21 +12,7 @@ import { useDrawerRegistry } from './context'
 import { useAnimate } from './utils/use-animate'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
 
-// ── Constants ────────────────────────────────────────────────
-
-const NESTING_SPRING_CONFIG: SpringAnimateConfig = {
-  bounce: 0,
-  duration: 0.35,
-  velocityPxPerSec: null,
-}
-
 // ── Helpers ──────────────────────────────────────────────────
-
-function parseScale(style: CSSStyleDeclaration): number {
-  const raw = style.scale
-  if (!raw || raw === 'none') return 1
-  return parseFloat(raw) || 1
-}
 
 function applyNestingStyles(element: HTMLElement, depth: number): void {
   element.setAttribute('data-nested-drawer-open', '')

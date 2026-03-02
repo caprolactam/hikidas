@@ -3,6 +3,20 @@ export type {
   AnimatableProperties,
   SpringAnimateConfig,
 } from './animation/animate'
+export {
+  getContentVariant,
+  getOverlayVariant,
+  resolveDefaultSpringConfig,
+  resolveOverlaySpringConfig,
+} from './animation/phase-animation'
+export type {
+  GetVariant,
+  ResolveSpringConfig,
+} from './animation/phase-animation'
+export {
+  NESTING_SPRING_CONFIG,
+  parseScale,
+} from './animation/nesting-animation'
 export { DragRegistry } from './drag/registry'
 export type { Direction, DismissalDirection } from './drawer/direction'
 export { DrawerMachine } from './drawer/machine'
