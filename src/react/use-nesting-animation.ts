@@ -3,7 +3,7 @@ import {
   initAnimate,
   type SpringAnimateConfig,
 } from '../core/animation/animate'
-import { NestingPhase } from '../core/drawer-registry'
+import { NestingPhase, getNestingDepth } from '../core/drawer-registry'
 import { scaleForDepth } from '../core/nesting'
 import { DrawerIdContext, useDrawerRegistry } from './drawer-registry-context'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
@@ -46,7 +46,7 @@ interface UseNestingAnimationProps {
  * and applies scale animations based on the nesting phase.
  *
  * Handles three animation scenarios:
- * - **Nesting / Unnesting**: child opening/closing — spring to targetNestingDepth
+ * - **Scaling**: child opening/closing — spring to targetDepth
  * - **DragRestoring**: drag cancelled — spring back to committed nestingDepth
  * - **DragControlled**: skipped — DragRegistry controls scale directly
  *
@@ -69,8 +69,9 @@ export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
     const initialState = registry.getNestingState(drawerId)
     prevPhaseRef.current = initialState.phase
 
-    if (initialState.nestingDepth > 0 && element) {
-      applyNestingStyles(element, initialState.nestingDepth)
+    const initialDepth = getNestingDepth(initialState)
+    if (initialDepth > 0 && element) {
+      applyNestingStyles(element, initialDepth)
     }
 
     const unsubscribe = registry.subscribe(() => {
@@ -84,11 +85,10 @@ export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
       prevPhaseRef.current = state.phase
 
       switch (state.phase) {
-        case NestingPhase.Nesting:
-        case NestingPhase.Unnesting: {
-          // Scale transition: animate to targetNestingDepth
+        case NestingPhase.Scaling: {
+          // Scale transition: animate to targetDepth
           const handle = registry.registerNestingTransition(drawerId)
-          const targetDepth = state.targetNestingDepth
+          const targetDepth = state.targetDepth
 
           if (targetDepth > 0) {
             el.setAttribute('data-nested-drawer-open', '')
@@ -144,8 +144,8 @@ export function useNestingAnimation({ elementRef }: UseNestingAnimationProps) {
           break
         }
 
-        case NestingPhase.Foreground:
-        case NestingPhase.Nested:
+        case NestingPhase.Inactive:
+        case NestingPhase.Active:
           // Stable states — no animation needed.
           break
       }

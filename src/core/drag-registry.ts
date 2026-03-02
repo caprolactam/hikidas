@@ -1,4 +1,5 @@
 import type { DrawerRegistry, DrawerId } from './drawer-registry'
+import { getNestingDepth } from './nesting-reducer'
 import { scaleForDepth } from './nesting'
 import { Phase } from './reducer'
 
@@ -143,7 +144,7 @@ export class DragRegistry {
    *
    * No ancestor scale restoration needed here — that's driven by
    * NestingPhase transitions in DrawerRegistry:
-   * - Dismiss (Closing): NestingPhase → Unnesting → useNestingAnimation springs to target
+   * - Dismiss (Closing): NestingPhase → Scaling → useNestingAnimation springs to target
    * - Cancel (Settling): NestingPhase → DragRestoring → useNestingAnimation springs back
    *
    * Timing note: useDrawerGesture's element-level pointerup fires before
@@ -167,11 +168,12 @@ export class DragRegistry {
       const instance = this.#instances.get(ancestor.id)
       if (!instance) continue
 
-      const nestingState = this.#registry.getNestingState(ancestor.id)
       resolved.push({
         id: ancestor.id,
         element: instance.node,
-        baseDepth: nestingState.nestingDepth,
+        baseDepth: getNestingDepth(
+          this.#registry.getNestingState(ancestor.id),
+        ),
       })
     }
 
