@@ -15,7 +15,7 @@ import {
 import { useAnimate } from './utils/use-animate'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
 
-interface DrawerAnimationProps {
+interface PhaseAnimationProps {
   elementRef: RefObject<HTMLElement | null>
   machine: DrawerMachine
 }
@@ -33,12 +33,12 @@ type ResolveSpringConfig = (props: {
   direction: Direction
 }) => SpringAnimateConfig
 
-function useDrawerAnimationBase({
+function usePhaseAnimation({
   elementRef,
   machine,
   getVariant,
   resolveSpringConfig,
-}: DrawerAnimationProps & {
+}: PhaseAnimationProps & {
   getVariant: GetVariant
   resolveSpringConfig: ResolveSpringConfig
 }) {
@@ -88,8 +88,8 @@ function useDrawerAnimationBase({
 }
 
 /** @internal */
-export function useContentAnimation(props: DrawerAnimationProps) {
-  return useDrawerAnimationBase({
+export function useContentAnimation(props: PhaseAnimationProps) {
+  return usePhaseAnimation({
     ...props,
     getVariant: getContentVariant,
     resolveSpringConfig: resolveDefaultSpringConfig,
@@ -97,8 +97,8 @@ export function useContentAnimation(props: DrawerAnimationProps) {
 }
 
 /** @internal */
-export function useOverlayAnimation(props: DrawerAnimationProps) {
-  return useDrawerAnimationBase({
+export function useOverlayAnimation(props: PhaseAnimationProps) {
+  return usePhaseAnimation({
     ...props,
     getVariant: getOverlayVariant,
     resolveSpringConfig: resolveOverlaySpringConfig,

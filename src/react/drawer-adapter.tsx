@@ -26,11 +26,8 @@ import {
   useDrawerRegistry,
   useParentDrawerId,
 } from './drawer-registry-context'
-import {
-  useContentAnimation,
-  useOverlayAnimation,
-} from './use-drawer-animation'
 import { useNestingAnimation } from './use-nesting-animation'
+import { useContentAnimation, useOverlayAnimation } from './use-phase-animation'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
 import { useMergeRefs } from './utils/use-merge-refs'
 import { useStatic } from './utils/use-static'
