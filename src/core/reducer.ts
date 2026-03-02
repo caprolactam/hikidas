@@ -1,7 +1,6 @@
-import type { Direction } from './direction'
+import type { Direction, DismissalDirection } from './direction'
 import { evaluateDragEnd } from './evaluate-drag-end'
 import { type SnapMode, computeSnapMode, snapModeEquals } from './snap-mode'
-import type { DismissalDirection } from './types'
 
 /** @internal */
 export const enum Phase {
