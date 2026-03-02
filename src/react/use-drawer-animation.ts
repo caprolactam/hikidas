@@ -1,18 +1,17 @@
 import type { RefObject } from 'react'
 import {
-  type AnimatableProperties,
-  type SpringAnimateConfig,
-} from '../core/animation/animate'
-import type { Direction } from '../core/direction'
-import type { DrawerMachine } from '../core/drawer-machine'
-import {
   Phase,
   TransitionKind,
+  type AnimatableProperties,
+  type Direction,
+  type DrawerMachine,
+  type SpringAnimateConfig,
   type TransitionablePhase,
   type TransitionHint,
-} from '../core/reducer'
-import { getActiveSnapRatio, type SnapMode } from '../core/snap-mode'
-import { parseTransform } from '../core/utils/parse-transform'
+  type SnapMode,
+  getActiveSnapRatio,
+  parseTransform,
+} from '../core'
 import { useAnimate } from './utils/use-animate'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
 

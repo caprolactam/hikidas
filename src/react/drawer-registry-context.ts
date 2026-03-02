@@ -1,6 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { DragRegistry } from '../core/drag-registry'
-import { DrawerRegistry, type DrawerId } from '../core/drawer-registry'
+import { DrawerRegistry, type DragRegistry, type DrawerId } from '../core'
 
 // ── DrawerRegistry Context ───────────────────────────────
 

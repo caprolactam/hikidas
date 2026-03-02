@@ -1,15 +1,13 @@
 import { useContext, useRef, type RefObject } from 'react'
 import {
-  type SpringAnimateConfig,
-} from '../core/animation/animate'
-import { useAnimate } from './utils/use-animate'
-import {
   NestingPhase,
   getNestingDepth,
+  type SpringAnimateConfig,
   type NestingState,
-} from '../core/drawer-registry'
-import { scaleForDepth } from '../core/nesting'
+  scaleForDepth,
+} from '../core'
 import { DrawerIdContext, useDrawerRegistry } from './drawer-registry-context'
+import { useAnimate } from './utils/use-animate'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
 
 // ── Constants ────────────────────────────────────────────────

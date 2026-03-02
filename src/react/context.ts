@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { DrawerMachine } from '../core/drawer-machine'
+import type { DrawerMachine } from '../core'
 
 /** @internal */
 export interface DrawerContextValue {

@@ -8,10 +8,13 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { DrawerMachine } from '../core/drawer-machine'
-import type { DrawerId } from '../core/drawer-registry'
-import { Phase, isOpenPhase } from '../core/reducer'
-import type { DismissalDirection } from '../core/types'
+import {
+  DrawerMachine,
+  Phase,
+  isOpenPhase,
+  type DismissalDirection,
+  type DrawerId,
+} from '../core'
 import {
   DrawerContext,
   type DrawerContextValue,

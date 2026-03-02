@@ -1,2 +1,2 @@
 export * from './drawer'
-export type * from '../../core/types'
+export type { DismissalDirection } from '../../core'

@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react'
-import { DragRegistry } from '../core/drag-registry'
-import { DrawerRegistry } from '../core/drawer-registry'
+import { DragRegistry, DrawerRegistry } from '../core'
 import {
   DragRegistryContext,
   DrawerRegistryContext,
@@ -54,9 +53,7 @@ export function DrawerRegistryProvider({
 
   return (
     <DrawerRegistryContext value={registry}>
-      <DragRegistryContext value={dragRegistry}>
-        {children}
-      </DragRegistryContext>
+      <DragRegistryContext value={dragRegistry}>{children}</DragRegistryContext>
     </DrawerRegistryContext>
   )
 }

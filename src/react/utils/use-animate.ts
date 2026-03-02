@@ -1,8 +1,6 @@
-import {
-  initAnimate,
-} from '../../core/animation/animate'
-import { useStatic } from './use-static'
+import { initAnimate } from '../../core'
 import { useIsomorphicEffect } from './use-isomorphic-effect'
+import { useStatic } from './use-static'
 
 /** @internal */
 export function useAnimate() {
