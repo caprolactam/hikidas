@@ -1,49 +1,25 @@
 import { useRef, type RefObject } from 'react'
 import {
+  type NestingState,
+  type DrawerId,
   NestingPhase,
   getNestingDepth,
   NESTING_SPRING_CONFIG,
   parseScale,
-  type NestingState,
-  type DrawerId,
   scaleForDepth,
 } from '../core'
 import { useDrawerRegistry } from './context'
 import { useAnimate } from './utils/use-animate'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
 
-// ── Helpers ──────────────────────────────────────────────────
-
-function applyNestingStyles(element: HTMLElement, depth: number): void {
-  element.setAttribute('data-nested-drawer-open', '')
-  element.style.scale = String(scaleForDepth(depth))
-}
-
-function clearNestingStyles(element: HTMLElement): void {
-  element.removeAttribute('data-nested-drawer-open')
-  element.style.scale = ''
-}
-
-// ── Hook ─────────────────────────────────────────────────────
+const ATTR_NESTED_OPEN = 'data-nested-drawer-open'
 
 interface UseNestingAnimationProps {
   drawerId: DrawerId
   elementRef: RefObject<HTMLElement | null>
 }
 
-/**
- * Subscribes to the DrawerRegistry's nesting state for the current drawer
- * and applies scale animations based on the nesting phase.
- *
- * Handles three animation scenarios:
- * - **Scaling**: child opening/closing — spring to targetDepth
- * - **DragRestoring**: drag cancelled — spring back to committed nestingDepth
- * - **DragControlled**: skipped — DragRegistry controls scale directly
- *
- * No-op when DrawerRegistryProvider is not present.
- *
- * @internal
- */
+/** @internal */
 export function useNestingAnimation({
   elementRef,
   drawerId,
@@ -53,23 +29,18 @@ export function useNestingAnimation({
   const prevStateRef = useRef<NestingState | null>(null)
 
   useIsomorphicEffect(() => {
-    if (!registry || !drawerId) return
-
     const element = elementRef.current
+    if (!element) return
 
     // Apply initial nesting state without animation (e.g. defaultOpen on both parent and child)
     const initialState = registry.getNestingState(drawerId)
     prevStateRef.current = initialState
-
     const initialDepth = getNestingDepth(initialState)
-    if (initialDepth > 0 && element) {
+    if (initialDepth > 0) {
       applyNestingStyles(element, initialDepth)
     }
 
     const unsubscribe = registry.subscribe(() => {
-      const el = elementRef.current
-      if (!el) return
-
       const state = registry.getNestingState(drawerId)
 
       // Only react when nesting state actually changes (referential equality).
@@ -79,79 +50,75 @@ export function useNestingAnimation({
       if (state === prevStateRef.current) return
       prevStateRef.current = state
 
+      const handle = registry.registerNestingTransition(drawerId)
+      if (!handle) return
+
       switch (state.phase) {
         case NestingPhase.Scaling: {
-          // Scale transition: animate to targetDepth
-          const handle = registry.registerNestingTransition(drawerId)
           const targetDepth = state.targetDepth
 
           if (targetDepth > 0) {
-            el.setAttribute('data-nested-drawer-open', '')
+            element.setAttribute(ATTR_NESTED_OPEN, '')
           } else {
-            el.removeAttribute('data-nested-drawer-open')
+            element.removeAttribute(ATTR_NESTED_OPEN)
           }
 
           animate
             .play(
-              el,
+              element,
               (prevStyle) => ({
                 scale: [parseScale(prevStyle), scaleForDepth(targetDepth)],
               }),
               NESTING_SPRING_CONFIG,
             )
             .then(() => {
-              handle?.reportComplete()
+              handle.reportComplete()
               if (targetDepth === 0) {
-                clearNestingStyles(el)
+                clearNestingStyles(element)
               }
             })
-            .catch(() => {
-              handle?.reportCancel()
-            })
+            .catch(handle.reportCancel)
           break
         }
 
-        case NestingPhase.DragControlled:
-          // DragRegistry is directly writing style.scale — do nothing.
-          break
-
         case NestingPhase.DragRestoring: {
-          // Drag cancelled: animate scale back to committed depth.
-          // DragRegistry left an inline scale from the drag; we read it
-          // via getComputedStyle and spring back to the committed depth.
-          const handle = registry.registerNestingTransition(drawerId)
           const committedDepth = state.nestingDepth
 
           animate
             .play(
-              el,
+              element,
               (prevStyle) => ({
                 scale: [parseScale(prevStyle), scaleForDepth(committedDepth)],
               }),
               NESTING_SPRING_CONFIG,
             )
-            .then(() => {
-              handle?.reportComplete()
-            })
-            .catch(() => {
-              handle?.reportCancel()
-            })
+            .then(handle.reportComplete)
+            .catch(handle.reportCancel)
           break
         }
-
+        case NestingPhase.DragControlled:
         case NestingPhase.Inactive:
         case NestingPhase.Active:
-          // Stable states — no animation needed.
           break
+        default:
+          const _exhaustiveCheck: never = state
+          return _exhaustiveCheck
       }
     })
 
     return () => {
       unsubscribe()
-      // Reset styles on unmount
-      if (element) {
-        clearNestingStyles(element)
-      }
+      clearNestingStyles(element)
     }
   }, [registry, drawerId, elementRef, animate])
+}
+
+function applyNestingStyles(element: HTMLElement, depth: number): void {
+  element.setAttribute(ATTR_NESTED_OPEN, '')
+  element.style.scale = String(scaleForDepth(depth))
+}
+
+function clearNestingStyles(element: HTMLElement): void {
+  element.removeAttribute(ATTR_NESTED_OPEN)
+  element.style.scale = ''
 }
