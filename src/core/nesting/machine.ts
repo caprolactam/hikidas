@@ -9,7 +9,7 @@ import {
   NESTING_TRANSITION_COMPLETE,
   NESTING_ENTER_DRAG_CONTROLLED,
   NESTING_RESTORE_FROM_DRAG,
-} from './nesting-reducer'
+} from './reducer'
 
 /** Handle returned by `registerTransition` for animation completion reporting. */
 export interface NestingTransitionHandle {

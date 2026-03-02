@@ -1,19 +1,16 @@
-import { initCacheStyling } from './drag/style-cache'
-import {
-  initVelocityTracker,
-  type VelocityTracker,
-} from './drag/velocity-tracker'
-import { resolveDragVisualDistance } from './drag/visual-distance'
-import type { DrawerRegistry, DrawerId } from './drawer-registry'
-import { getNestingDepth } from './nesting-reducer'
-import { scaleForDepth } from './nesting'
-import { Phase } from './reducer'
+import { Phase } from '../drawer/reducer'
 import {
   getActiveSnapRatio,
   getMaxSnapRatio,
   getMinSnapRatio,
-} from './snap-mode'
-import { getViewportSize } from './utils/get-viewport-size'
+} from '../drawer/snap-mode'
+import { getNestingDepth } from '../nesting/reducer'
+import type { DrawerRegistry, DrawerId } from '../nesting/registry'
+import { scaleForDepth } from '../nesting/scale'
+import { getViewportSize } from '../utils/get-viewport-size'
+import { initCacheStyling } from './style-cache'
+import { initVelocityTracker, type VelocityTracker } from './velocity-tracker'
+import { resolveDragVisualDistance } from './visual-distance'
 
 // ── Constants ─────────────────────────────────────────────────
 
@@ -152,9 +149,7 @@ export class DragRegistry {
     const targetNode = e.target
     if (!(targetNode instanceof HTMLElement)) return
 
-    if (
-      !isDragInteractionAllowed({ rootNode: instance.node, targetNode })
-    ) {
+    if (!isDragInteractionAllowed({ rootNode: instance.node, targetNode })) {
       return
     }
 
@@ -194,7 +189,8 @@ export class DragRegistry {
 
     const instance = this.#instances.get(this.#activeDrawerId)!
     const pointerPos = { x: e.clientX, y: e.clientY }
-    const draggedDistance = this.#dragStartCoords.calcDraggedDistance(pointerPos)
+    const draggedDistance =
+      this.#dragStartCoords.calcDraggedDistance(pointerPos)
 
     switch (phase) {
       case Phase.Tracking: {
@@ -420,7 +416,10 @@ export class DragRegistry {
    */
   #updateAncestorScalesFromPointer(
     e: PointerEvent,
-    direction: { projectOnDismissAxis: (d: { x: number; y: number }) => number; sizeOnAxis: (r: DOMRect) => number },
+    direction: {
+      projectOnDismissAxis: (d: { x: number; y: number }) => number
+      sizeOnAxis: (r: DOMRect) => number
+    },
     instance: DraggableInstance,
   ): void {
     if (!this.#initialPointerPos) return
@@ -456,9 +455,7 @@ export class DragRegistry {
       resolved.push({
         id: ancestor.id,
         element: instance.node,
-        baseDepth: getNestingDepth(
-          this.#registry.getNestingState(ancestor.id),
-        ),
+        baseDepth: getNestingDepth(this.#registry.getNestingState(ancestor.id)),
       })
     }
 

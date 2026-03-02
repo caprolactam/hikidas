@@ -668,7 +668,9 @@ describe('DrawerRegistry', () => {
         assert(state.phase === NestingPhase.Scaling)
         expect(state.targetDepth).toBe(1)
       }
-      expect(manager.getNestingState('grandchild').phase).toBe(NestingPhase.Inactive)
+      expect(manager.getNestingState('grandchild').phase).toBe(
+        NestingPhase.Inactive,
+      )
     })
 
     test('child closing resets targetNestingDepth on parent', () => {

@@ -1,11 +1,7 @@
-import type { DrawerMachine } from './drawer-machine'
-import { NestingMachine, type NestingTransitionHandle } from './nesting-machine'
-import {
-  type NestingState,
-  NestingPhase,
-  getNestingDepth,
-} from './nesting-reducer'
-import { Phase, isOpenPhase } from './reducer'
+import type { DrawerMachine } from '../drawer/machine'
+import { Phase, isOpenPhase } from '../drawer/reducer'
+import { NestingMachine, type NestingTransitionHandle } from './machine'
+import { type NestingState, NestingPhase, getNestingDepth } from './reducer'
 
 // Re-export nesting types for consumers
 export {
@@ -386,7 +382,10 @@ export class DrawerRegistry {
     // Each child's own #onPhaseChange will recurse to grandchildren automatically.
     if (childPhase === Phase.Closing) {
       for (const other of this.#entries.values()) {
-        if (other.parentId === id && isOpenPhase(other.machine.snapshot.phase)) {
+        if (
+          other.parentId === id &&
+          isOpenPhase(other.machine.snapshot.phase)
+        ) {
           other.machine.requestClose()
         }
       }
