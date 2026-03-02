@@ -48,7 +48,7 @@ class DragGesture {
   async cancel(): Promise<void> {
     this.#assertActive()
     this.#done = true
-    await this.handle.dispatchEvent('pointercancel')
+    await this.handle.dispatchEvent('pointercancel', { pointerId: 1 })
     await this.page.mouse.up()
   }
 
