@@ -1,32 +1,34 @@
-// ── Nesting Phase ────────────────────────────────────────────
-
 /**
+ * @internal
+ *
  * Phase of a drawer's nesting state.
  *
  * Describes the lifecycle of a drawer as a parent within a nested stack
- * (i.e. "how many open descendants are stacked above me?"):
+ * (i.e. "how many nesting-active descendants are stacked above me?").
+ * Transitions are driven by computed nesting depth changes — which occur
+ * when descendant entries are registered/unregistered, or when a
+ * descendant's phase crosses the nesting-active threshold (Closing/Closed
+ * are not nesting-active; all other phases are).
  *
- *   Inactive ──child opens──→ Scaling ──anim complete──→ Active
- *      ↑                                                   │ ↑
- *      │ anim complete (depth→0)                           │ │ anim complete (depth>0)
- *      └─── Scaling ←──child closes────────────────────────┘ │
- *                                                             │
+ *   Inactive ──depth increases──→ Scaling ──anim complete──→ Active
+ *      ↑                                                       │ ↑
+ *      │ anim complete (depth→0)                               │ │ anim complete (depth>0)
+ *      └─── Scaling ←──depth decreases────────────────────────┘ │
+ *                                                                │
  *   DragControlled ←──child enters Dragging──────────── [Active]
  *        │
  *        │ cancel (child enters Settling)
  *        ↓
  *   DragRestoring ──── anim complete ──→ Active
- *
- * @internal
  */
 export const enum NestingPhase {
-  /** No open descendants. Depth = 0. Scale = 1. */
+  /** No nesting-active descendants. Depth = 0. Scale = 1. */
   Inactive = 'inactive',
 
   /** Nesting depth is changing. Scale animating between depths. */
   Scaling = 'scaling',
 
-  /** Open descendants present, depth committed and stable. */
+  /** Nesting-active descendants present, depth committed and stable. */
   Active = 'active',
 
   /** Descendant is being dragged. Scale is externally controlled by DragRegistry. */
@@ -36,13 +38,13 @@ export const enum NestingPhase {
   DragRestoring = 'drag-restoring',
 }
 
-// ── State (discriminated union) ──────────────────────────────
-
 /**
+ * @internal
+ *
  * Nesting state for a drawer node, modelled as a discriminated union
  * so each phase carries only the data it needs.
  *
- * - `Inactive`: no open descendants, depth is implicitly 0.
+ * - `Inactive`: no nesting-active descendants, depth is implicitly 0.
  * - `Active`: stable nesting with committed depth.
  * - `Scaling`: depth transitioning — carries both current and target depth.
  * - `DragControlled` / `DragRestoring`: drag lifecycle with committed depth.
@@ -64,28 +66,6 @@ export type NestingState =
       readonly nestingDepth: number
     }
 
-// ── Helpers ──────────────────────────────────────────────────
-
-/**
- * Extract the committed nesting depth from any NestingState.
- * Returns 0 for Inactive.
- */
-export function getNestingDepth(state: NestingState): number {
-  return state.phase === NestingPhase.Inactive ? 0 : state.nestingDepth
-}
-
-/**
- * Extract the target depth for scaling states, or the committed depth otherwise.
- * Returns 0 for Inactive.
- */
-export function getTargetDepth(state: NestingState): number {
-  if (state.phase === NestingPhase.Inactive) return 0
-  if (state.phase === NestingPhase.Scaling) return state.targetDepth
-  return state.nestingDepth
-}
-
-// ── Action constants ─────────────────────────────────────────
-
 /** @internal */
 export const NESTING_DEPTH_CHANGED = 1
 /** @internal */
@@ -97,8 +77,6 @@ export const NESTING_ENTER_DRAG_CONTROLLED = 4
 /** @internal */
 export const NESTING_RESTORE_FROM_DRAG = 5
 
-// ── Events ───────────────────────────────────────────────────
-
 /** @internal */
 export type NestingEvent =
   | { type: typeof NESTING_DEPTH_CHANGED; targetDepth: number }
@@ -106,16 +84,6 @@ export type NestingEvent =
   | { type: typeof NESTING_TRANSITION_COMPLETE }
   | { type: typeof NESTING_ENTER_DRAG_CONTROLLED }
   | { type: typeof NESTING_RESTORE_FROM_DRAG }
-
-// ── Reducer ──────────────────────────────────────────────────
-
-const INACTIVE: NestingState = { phase: NestingPhase.Inactive }
-
-function terminalState(depth: number): NestingState {
-  return depth === 0
-    ? INACTIVE
-    : { phase: NestingPhase.Active, nestingDepth: depth }
-}
 
 /** @internal */
 export function nestingReducer(
@@ -130,10 +98,15 @@ export function nestingReducer(
 
       const currentDepth = getNestingDepth(state)
       if (targetDepth === currentDepth) {
-        // No animation needed — snap directly
+        // The new target matches the committed depth, so no animation is needed.
+        // We use terminalState rather than returning `state` as-is, because the
+        // current phase may not be a stable terminal phase. For example, during
+        // Scaling { nestingDepth: 0, targetDepth: 1 }, if the target reverses
+        // back to 0 (the committed depth), we must snap to Inactive rather than
+        // leave stale Scaling state with an outdated targetDepth.
         return terminalState(targetDepth)
       }
-      // Animation needed
+
       return {
         phase: NestingPhase.Scaling,
         nestingDepth: currentDepth,
@@ -180,9 +153,37 @@ export function nestingReducer(
   }
 }
 
-// ── Init ─────────────────────────────────────────────────────
-
 /** @internal */
 export function nestingReducerInit(depth: number): NestingState {
   return terminalState(depth)
+}
+
+const INACTIVE: NestingState = { phase: NestingPhase.Inactive }
+
+function terminalState(depth: number): NestingState {
+  return depth === 0
+    ? INACTIVE
+    : { phase: NestingPhase.Active, nestingDepth: depth }
+}
+
+/**
+ * @internal
+ *
+ * Extract the committed nesting depth from any NestingState.
+ * Returns 0 for Inactive.
+ */
+export function getNestingDepth(state: NestingState): number {
+  return state.phase === NestingPhase.Inactive ? 0 : state.nestingDepth
+}
+
+/**
+ * @internal
+ *
+ * Extract the target depth for scaling states, or the committed depth otherwise.
+ * Returns 0 for Inactive.
+ */
+export function getTargetDepth(state: NestingState): number {
+  if (state.phase === NestingPhase.Inactive) return 0
+  if (state.phase === NestingPhase.Scaling) return state.targetDepth
+  return state.nestingDepth
 }
