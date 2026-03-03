@@ -21,22 +21,26 @@
  *        ↓
  *   DragRestoring ──── anim complete ──→ Active
  */
-export const enum NestingPhase {
+/**
+ * @internal
+ *
+ * Phase of a drawer's nesting state (as const object).
+ */
+export const NestingPhase = {
   /** No nesting-active descendants. Depth = 0. Scale = 1. */
-  Inactive = 'inactive',
-
+  Inactive: 'inactive',
   /** Nesting depth is changing. Scale animating between depths. */
-  Scaling = 'scaling',
-
+  Scaling: 'scaling',
   /** Nesting-active descendants present, depth committed and stable. */
-  Active = 'active',
-
+  Active: 'active',
   /** Descendant is being dragged. Scale is externally controlled by DragRegistry. */
-  DragControlled = 'drag-controlled',
-
+  DragControlled: 'drag-controlled',
   /** Drag cancelled. Animating scale back to committed depth. */
-  DragRestoring = 'drag-restoring',
-}
+  DragRestoring: 'drag-restoring',
+} as const
+
+/** @internal */
+export type NestingPhase = (typeof NestingPhase)[keyof typeof NestingPhase]
 
 /**
  * @internal
@@ -50,19 +54,19 @@ export const enum NestingPhase {
  * - `DragControlled` / `DragRestoring`: drag lifecycle with committed depth.
  */
 export type NestingState =
-  | { readonly phase: NestingPhase.Inactive }
-  | { readonly phase: NestingPhase.Active; readonly nestingDepth: number }
+  | { readonly phase: typeof NestingPhase.Inactive }
+  | { readonly phase: typeof NestingPhase.Active; readonly nestingDepth: number }
   | {
-      readonly phase: NestingPhase.Scaling
+      readonly phase: typeof NestingPhase.Scaling
       readonly nestingDepth: number
       readonly targetDepth: number
     }
   | {
-      readonly phase: NestingPhase.DragControlled
+      readonly phase: typeof NestingPhase.DragControlled
       readonly nestingDepth: number
     }
   | {
-      readonly phase: NestingPhase.DragRestoring
+      readonly phase: typeof NestingPhase.DragRestoring
       readonly nestingDepth: number
     }
 
