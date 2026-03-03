@@ -2,6 +2,7 @@
 import { readFileSync, rmSync } from 'node:fs'
 import { gzipSync } from 'node:zlib'
 import { getBabelOutputPlugin } from '@rollup/plugin-babel'
+import replace from '@rollup/plugin-replace'
 import terser from '@rollup/plugin-terser'
 import typescript from '@rollup/plugin-typescript'
 import { rollup } from 'rollup'
@@ -15,9 +16,8 @@ const external = (id) =>
   ].some((d) => id.startsWith(d))
 
 /**
- * Rollup設定を生成
- * @param {string} adapterName - アダプター名
- * @param {boolean} withTerser - Terserを使用するか
+ * @param {string} adapterName
+ * @param {boolean} withTerser - whether to include Terser plugin
  * @returns {import('rollup').RollupOptions}
  */
 function createBuildConfig(adapterName, withTerser) {
@@ -26,40 +26,26 @@ function createBuildConfig(adapterName, withTerser) {
     : `dist/.temp/${adapterName}.js`
 
   return {
-    input: `src/adapters/${adapterName}/index.ts`,
+    input: `src/react/adapters/${adapterName}/index.ts`,
     output: {
       file: outputFile,
       format: 'esm',
       sourcemap: false,
     },
     plugins: [
+      replace({
+        __DEV__: false,
+        preventAssignment: true,
+      }),
       typescript({
         tsconfig: './tsconfig.build.json',
-        declaration: false, // 型定義は不要
+        declaration: false,
         sourceMap: false,
       }),
       getBabelOutputPlugin({
         plugins: ['@babel/plugin-transform-react-pure-annotations'],
       }),
-      ...(withTerser
-        ? [
-            terser({
-              ecma: 2020,
-              module: true,
-              compress: {
-                passes: 5,
-                unsafe: true,
-                keep_fargs: false,
-              },
-              mangle: {
-                properties: true,
-              },
-              format: {
-                preserve_annotations: true,
-              },
-            }),
-          ]
-        : []),
+      ...(withTerser ? [terser()] : []),
       banner(() => '"use client";\n'),
     ],
     external,
@@ -67,8 +53,7 @@ function createBuildConfig(adapterName, withTerser) {
 }
 
 /**
- * ファイルサイズを取得
- * @param {string} filePath - ファイルパス
+ * @param {string} filePath
  * @returns {{ raw: number, gzip: number }}
  */
 function getFileSize(filePath) {
@@ -79,8 +64,7 @@ function getFileSize(filePath) {
 }
 
 /**
- * バイト数を人間が読める形式に変換
- * @param {number} bytes - バイト数
+ * @param {number} bytes
  * @returns {string}
  */
 function formatBytes(bytes) {
@@ -92,9 +76,8 @@ function formatBytes(bytes) {
 }
 
 /**
- * パーセンテージを計算
- * @param {number} original - 元のサイズ
- * @param {number} minified - 圧縮後のサイズ
+ * @param {number} original
+ * @param {number} minified
  * @returns {string}
  */
 function calculateReduction(original, minified) {
@@ -103,13 +86,12 @@ function calculateReduction(original, minified) {
 }
 
 /**
- * ビルドを実行してサイズを測定
- * @param {string} adapterName - アダプター名
+ * @param {string} adapterName
  */
 async function measureBuildSize(adapterName) {
   console.log(`\n📦 Building ${adapterName} adapter...\n`)
 
-  // Terserなしでビルド
+  // build without Terser
   console.log('⏳ Building without minification...')
   const configWithoutTerser = createBuildConfig(adapterName, false)
   const bundleWithout = await rollup(configWithoutTerser)
@@ -117,7 +99,7 @@ async function measureBuildSize(adapterName) {
   await bundleWithout.close()
   const sizeWithout = getFileSize(configWithoutTerser.output.file)
 
-  // Terserありでビルド
+  // build with Terser
   console.log('⏳ Building with Terser minification...')
   const configWithTerser = createBuildConfig(adapterName, true)
   const bundleWith = await rollup(configWithTerser)
@@ -125,7 +107,6 @@ async function measureBuildSize(adapterName) {
   await bundleWith.close()
   const sizeWith = getFileSize(configWithTerser.output.file)
 
-  // 結果を表示
   console.log('\n📊 Build Size Comparison\n')
   console.log(
     '┌─────────────────────────────┬──────────────┬──────────────┬────────────┐',
@@ -164,7 +145,6 @@ async function measureBuildSize(adapterName) {
   rmSync('dist/.temp', { recursive: true })
 }
 
-// メイン処理
 const adapterName = process.argv[2] || 'radix-ui'
 
 if (!['base-ui', 'radix-ui', 'headlessui'].includes(adapterName)) {
