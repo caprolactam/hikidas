@@ -11,7 +11,7 @@ import {
 } from './drawer'
 
 export default {
-  title: 'Nested Drawer',
+  title: 'Drawer/Nested',
   parameters: {
     layout: 'fullscreen',
   },
