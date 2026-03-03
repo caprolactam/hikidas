@@ -10,12 +10,12 @@ import {
   type DialogDescriptionProps,
   type DialogCloseProps,
 } from '@base-ui/react/dialog'
-import { DrawerRegistryProvider, DrawerProvider } from '../../react/provider'
+import { DrawerRegistryProvider, DrawerProvider } from '../../provider'
 import {
   useDrawerContent,
   useDrawerOverlay,
   type DrawerRootAPI,
-} from '../../react/use-drawer'
+} from '../../use-drawer'
 
 export { DrawerRegistryProvider }
 

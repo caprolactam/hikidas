@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { Drawer } from '../../src/adapters/headlessui'
+import { Drawer } from '../../src/react/adapters/headlessui'
 
 export default {
   title: 'Adapters/Headless UI',

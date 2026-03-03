@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { Drawer } from '../../src/adapters/base-ui'
+import { Drawer } from '../../src/react/adapters/base-ui'
 
 export default {
   title: 'Adapters/Base UI',

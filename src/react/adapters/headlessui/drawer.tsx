@@ -6,12 +6,12 @@ import {
   CloseButton,
 } from '@headlessui/react'
 import type React from 'react'
-import { DrawerRegistryProvider, DrawerProvider } from '../../react/provider'
+import { DrawerRegistryProvider, DrawerProvider } from '../../provider'
 import {
   useDrawerContent,
   useDrawerOverlay,
   type DrawerRootAPI,
-} from '../../react/use-drawer'
+} from '../../use-drawer'
 
 export { DrawerRegistryProvider }
 

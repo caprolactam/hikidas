@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { Drawer } from '../../src/adapters/radix-ui'
+import { Drawer } from '../../src/react/adapters/radix-ui'
 
 export default {
   title: 'Adapters/Radix UI',

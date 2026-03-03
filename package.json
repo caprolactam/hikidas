@@ -26,19 +26,19 @@
   "sideEffects": false,
   "exports": {
     "./base-ui": {
-      "types": "./dist/base-ui/adapters/base-ui/index.d.ts",
+      "types": "./dist/base-ui/react/adapters/base-ui/index.d.ts",
       "development": "./dist/base-ui/index.dev.js",
       "production": "./dist/base-ui/index.prod.js",
       "default": "./dist/base-ui/index.prod.js"
     },
     "./radix-ui": {
-      "types": "./dist/radix-ui/adapters/radix-ui/index.d.ts",
+      "types": "./dist/radix-ui/react/adapters/radix-ui/index.d.ts",
       "development": "./dist/radix-ui/index.dev.js",
       "production": "./dist/radix-ui/index.prod.js",
       "default": "./dist/radix-ui/index.prod.js"
     },
     "./headlessui": {
-      "types": "./dist/headlessui/adapters/headlessui/index.d.ts",
+      "types": "./dist/headlessui/react/adapters/headlessui/index.d.ts",
       "development": "./dist/headlessui/index.dev.js",
       "production": "./dist/headlessui/index.prod.js",
       "default": "./dist/headlessui/index.prod.js"

@@ -18,7 +18,7 @@ function createAdapterConfig(adapterName, env) {
     : pkg.exports[exportPath].production
 
   return {
-    input: `src/adapters/${adapterName}/index.ts`,
+    input: `src/react/adapters/${adapterName}/index.ts`,
     output: {
       file: outputFile,
       format: 'esm',
