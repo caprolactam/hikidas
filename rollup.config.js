@@ -31,7 +31,6 @@ function createAdapterConfig(adapterName, env) {
       }),
       typescript({
         tsconfig: './tsconfig.build.json',
-        outDir: `dist/${adapterName}`,
       }),
       getBabelOutputPlugin({
         plugins: ['@babel/plugin-transform-react-pure-annotations'],
