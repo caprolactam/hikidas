@@ -1,4 +1,5 @@
 import {
+  useContext,
   useMemo,
   useRef,
   useCallback,
@@ -11,16 +12,16 @@ import {
   DrawerMachine,
   Phase,
   isOpenPhase,
+  createDragController,
   type DismissalDirection,
 } from '../core'
 import {
   type DrawerContextValue,
   useDrawerContext,
   useParentDrawerId,
-  useDragRegistry,
-  useDrawerRegistry,
+  useDrawerRegistryOptional,
+  DragSetupContext,
 } from './context'
-import { useNestingAnimation } from './use-nesting-animation'
 import { useContentAnimation, useOverlayAnimation } from './use-phase-animation'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
 import { useMergeRefs } from './utils/use-merge-refs'
@@ -148,7 +149,7 @@ export function useDrawerRoot({
   onSnapPointChange,
 }: DrawerRootAPI) {
   const id = useId()
-  const manager = useDrawerRegistry()
+  const registry = useDrawerRegistryOptional()
   const parentDrawerId = useParentDrawerId()
   const [desiredOpen, setDesiredOpen] = useControllableState({
     value: open,
@@ -185,13 +186,15 @@ export function useDrawerRoot({
       ),
   )
 
+  // Register with DrawerRegistry only when NestingDrawerProvider is present
   useIsomorphicEffect(() => {
-    return manager.register({
+    if (!registry) return
+    return registry.register({
       id,
       parentId: parentDrawerId,
       machine,
     })
-  }, [manager, id, parentDrawerId, machine])
+  }, [registry, id, parentDrawerId, machine])
 
   useEffect(() => {
     machine.updateConfig({
@@ -300,22 +303,33 @@ export function useDrawerContent(props: {
   style: React.CSSProperties
 } {
   const { id, machine, contentRef, overlayRef } = useDrawerContext()
-  const dragRegistry = useDragRegistry()
+  const dragSetup = useContext(DragSetupContext)
 
   useContentAnimation({
     machine,
     elementRef: contentRef,
   })
 
-  useNestingAnimation({ drawerId: id, elementRef: contentRef })
+  useIsomorphicEffect(() => {
+    if (!contentRef.current) return
 
-  useEffect(() => {
-    if (!dragRegistry || !id || !contentRef.current) return
-    return dragRegistry.register(id, {
-      node: contentRef.current,
-      overlayNode: overlayRef.current,
+    if (dragSetup) {
+      // Nesting mode: coordinator handles drag + nesting animation
+      return dragSetup({
+        id,
+        element: contentRef.current,
+        overlayElement: overlayRef.current,
+        machine,
+      })
+    }
+
+    // Standalone mode: local DragController (no nesting)
+    return createDragController({
+      element: contentRef.current,
+      overlayElement: overlayRef.current,
+      machine,
     })
-  }, [dragRegistry, id, contentRef, overlayRef])
+  }, [dragSetup, id, contentRef, overlayRef, machine])
 
   const ref = useMergeRefs([props.ref, contentRef])
 

@@ -1,59 +1,84 @@
-import React, { useEffect } from 'react'
+import React, { useCallback, useEffect } from 'react'
 import { DragRegistry, DrawerRegistry } from '../core'
 import {
-  DragRegistryContext,
   DrawerRegistryContext,
+  DragSetupContext,
+  type DragSetup,
   DrawerContext,
 } from './context'
+import { setupNestingAnimation } from './setup-nesting-animation'
 import { useDrawerRoot, type DrawerRootAPI } from './use-drawer'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
 import { useStatic } from './utils/use-static'
 
-interface DrawerRegistryProviderProps {
+interface NestingDrawerProviderProps {
   children: React.ReactNode
 }
 
 /**
- * Provides a DrawerRegistry and DragRegistry to all descendant Drawer components.
- * Nest this once near the root of your app to enable multi-drawer
- * features such as tree queries (getChildren, getAncestors, getFrontmostOpen)
- * and drag-time ancestor scale interpolation.
+ * Provides nesting support for descendant Drawer components.
+ * Wrap this around your app (or a subtree) to enable nested drawer features:
+ * tree queries (getChildren, getAncestors, getFrontmostOpen),
+ * drag-time ancestor scale interpolation, and cascade close.
  *
- * When no DrawerRegistryProvider is present, drawers function independently —
- * the integration is fully opt-in.
+ * When no NestingDrawerProvider is present, drawers function independently —
+ * the nesting integration is fully opt-in and tree-shakeable.
  *
  * @example
  * ```tsx
- * import { DrawerRegistryProvider } from 'hikidas/react'
+ * import { NestingDrawerProvider } from 'hikidas/react'
  *
  * function App() {
  *   return (
- *     <DrawerRegistryProvider>
+ *     <NestingDrawerProvider>
  *       <Drawer.Root>...</Drawer.Root>
  *       <Drawer.Root>
  *         <Drawer.Root>...</Drawer.Root> // nested
  *       </Drawer.Root>
- *     </DrawerRegistryProvider>
+ *     </NestingDrawerProvider>
  *   )
  * }
  * ```
  */
-export function DrawerRegistryProvider({
+export function NestingDrawerProvider({
   children,
-}: DrawerRegistryProviderProps) {
+}: NestingDrawerProviderProps) {
   const drawerRegistry = useStatic(() => new DrawerRegistry())
   const dragRegistry = useStatic(() => new DragRegistry(drawerRegistry))
 
   useIsomorphicEffect(() => {
-    return dragRegistry.dispose.bind(dragRegistry)
+    return () => dragRegistry.dispose()
   }, [dragRegistry])
+
+  const dragSetup: DragSetup = useCallback(
+    (params) => {
+      const cleanupDrag = dragRegistry.register(
+        params.id,
+        { node: params.element, overlayNode: params.overlayElement },
+        params.machine,
+      )
+      const cleanupNesting = setupNestingAnimation({
+        registry: drawerRegistry,
+        drawerId: params.id,
+        element: params.element,
+      })
+      return () => {
+        cleanupDrag()
+        cleanupNesting()
+      }
+    },
+    [dragRegistry, drawerRegistry],
+  )
 
   return (
     <DrawerRegistryContext value={drawerRegistry}>
-      <DragRegistryContext value={dragRegistry}>{children}</DragRegistryContext>
+      <DragSetupContext value={dragSetup}>{children}</DragSetupContext>
     </DrawerRegistryContext>
   )
 }
+
+/** @deprecated Use {@link NestingDrawerProvider} instead. */
+export const DrawerRegistryProvider = NestingDrawerProvider
 
 interface DrawerProviderAPI {
   isOpen: boolean

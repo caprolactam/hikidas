@@ -17,6 +17,8 @@ export {
   NESTING_SPRING_CONFIG,
   parseScale,
 } from './animation/nesting-animation'
+export { createDragController } from './drag/controller'
+export type { DragHooks, DragControllerOptions } from './drag/controller'
 export { DragRegistry } from './drag/registry'
 export type { Direction, DismissalDirection } from './drawer/direction'
 export { DrawerMachine } from './drawer/machine'
