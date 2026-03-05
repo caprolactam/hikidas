@@ -14,8 +14,6 @@ import {
 } from '../../use-drawer'
 
 export { NestingDrawerProvider }
-/** @deprecated Use {@link NestingDrawerProvider} instead. */
-export const DrawerRegistryProvider = NestingDrawerProvider
 
 export interface DrawerRootProps
   extends
@@ -103,9 +101,6 @@ export interface DrawerCloseProps extends React.ComponentPropsWithRef<
 export const DrawerClose = CloseButton
 
 export const Drawer = {
-  NestingProvider: NestingDrawerProvider,
-  /** @deprecated Use `Drawer.NestingProvider` instead. */
-  Registry: NestingDrawerProvider,
   Root: DrawerRoot,
   Backdrop: DrawerBackdrop,
   Panel: DrawerPanel,

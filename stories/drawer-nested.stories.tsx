@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { Drawer } from '../src/react/adapters/radix-ui'
+import { NestingDrawerProvider, Drawer } from '../src/react/adapters/radix-ui'
 import {
   triggerClassName,
   Overlay,
@@ -43,8 +43,8 @@ function NestedContent({
 export const Basic: Story = {
   name: 'Basic (2 levels)',
   render: () => (
-    <Drawer.Registry>
-      <div className='h-screen w-full bg-slate-50 p-6'>
+    <div className='h-screen w-full bg-slate-50 p-6'>
+      <NestingDrawerProvider>
         <Drawer.Root>
           <Drawer.Trigger className={triggerClassName}>
             Open Parent Drawer
@@ -88,16 +88,16 @@ export const Basic: Story = {
             </NestedContent>
           </Drawer.Portal>
         </Drawer.Root>
-      </div>
-    </Drawer.Registry>
+      </NestingDrawerProvider>
+    </div>
   ),
 }
 
 export const ThreeLevels: Story = {
   name: 'Deep Nesting (3 levels)',
   render: () => (
-    <Drawer.Registry>
-      <div className='h-screen w-full bg-slate-50 p-6'>
+    <div className='h-screen w-full bg-slate-50 p-6'>
+      <NestingDrawerProvider>
         <Drawer.Root>
           <Drawer.Trigger className={triggerClassName}>
             Open Level 1
@@ -163,8 +163,8 @@ export const ThreeLevels: Story = {
             </NestedContent>
           </Drawer.Portal>
         </Drawer.Root>
-      </div>
-    </Drawer.Registry>
+      </NestingDrawerProvider>
+    </div>
   ),
 }
 
@@ -175,8 +175,8 @@ export const Controlled: Story = {
     const [childOpen, setChildOpen] = useState(false)
 
     return (
-      <Drawer.Registry>
-        <div className='h-screen w-full bg-slate-50 p-6 space-y-4'>
+      <div className='h-screen w-full bg-slate-50 p-6 space-y-4'>
+        <NestingDrawerProvider>
           <div className='flex gap-4 items-center'>
             <button
               type='button'
@@ -243,8 +243,8 @@ export const Controlled: Story = {
               </NestedContent>
             </Drawer.Portal>
           </Drawer.Root>
-        </div>
-      </Drawer.Registry>
+        </NestingDrawerProvider>
+      </div>
     )
   },
 }
@@ -252,63 +252,61 @@ export const Controlled: Story = {
 export const WithoutRegistry: Story = {
   name: 'Without DrawerRegistryProvider',
   render: () => (
-    <Drawer.Registry>
-      <div className='h-screen w-full bg-slate-50 p-6'>
-        <p className='mb-4 text-sm text-slate-500'>
-          No DrawerRegistryProvider — nesting animation is disabled. Drawers
-          work independently.
-        </p>
-        <Drawer.Root>
-          <Drawer.Trigger className={triggerClassName}>
-            Open Parent Drawer
-          </Drawer.Trigger>
-          <Drawer.Portal>
-            <Overlay />
-            <NestedContent level={0}>
-              <DummyHandle />
-              <div className='space-y-4 px-6 pb-6'>
-                <Title>Parent Drawer</Title>
-                <Description>
-                  No scale animation will occur when the child opens.
-                </Description>
+    <div className='h-screen w-full bg-slate-50 p-6'>
+      <p className='mb-4 text-sm text-slate-500'>
+        No DrawerRegistryProvider — nesting animation is disabled. Drawers work
+        independently.
+      </p>
+      <Drawer.Root>
+        <Drawer.Trigger className={triggerClassName}>
+          Open Parent Drawer
+        </Drawer.Trigger>
+        <Drawer.Portal>
+          <Overlay />
+          <NestedContent level={0}>
+            <DummyHandle />
+            <div className='space-y-4 px-6 pb-6'>
+              <Title>Parent Drawer</Title>
+              <Description>
+                No scale animation will occur when the child opens.
+              </Description>
 
-                <Drawer.Root>
-                  <Drawer.Trigger className={triggerClassName}>
-                    Open Child Drawer
-                  </Drawer.Trigger>
-                  <Drawer.Portal>
-                    <NestedContent level={1}>
-                      <DummyHandle />
-                      <div className='space-y-4 px-6 pb-6'>
-                        <Title>Child Drawer</Title>
-                        <Description>
-                          Parent should NOT scale — no registry is present.
-                        </Description>
-                        <Drawer.Close className={closeButtonClassName}>
-                          Close Child
-                        </Drawer.Close>
-                      </div>
-                    </NestedContent>
-                  </Drawer.Portal>
-                </Drawer.Root>
+              <Drawer.Root>
+                <Drawer.Trigger className={triggerClassName}>
+                  Open Child Drawer
+                </Drawer.Trigger>
+                <Drawer.Portal>
+                  <NestedContent level={1}>
+                    <DummyHandle />
+                    <div className='space-y-4 px-6 pb-6'>
+                      <Title>Child Drawer</Title>
+                      <Description>
+                        Parent should NOT scale — no registry is present.
+                      </Description>
+                      <Drawer.Close className={closeButtonClassName}>
+                        Close Child
+                      </Drawer.Close>
+                    </div>
+                  </NestedContent>
+                </Drawer.Portal>
+              </Drawer.Root>
 
-                <Drawer.Close className={closeButtonClassName}>
-                  Close Parent
-                </Drawer.Close>
-              </div>
-            </NestedContent>
-          </Drawer.Portal>
-        </Drawer.Root>
-      </div>
-    </Drawer.Registry>
+              <Drawer.Close className={closeButtonClassName}>
+                Close Parent
+              </Drawer.Close>
+            </div>
+          </NestedContent>
+        </Drawer.Portal>
+      </Drawer.Root>
+    </div>
   ),
 }
 
 export const InitiallyOpen: Story = {
   name: 'Both Initially Open (defaultOpen)',
   render: () => (
-    <Drawer.Registry>
-      <div className='h-screen w-full bg-slate-50 p-6'>
+    <div className='h-screen w-full bg-slate-50 p-6'>
+      <NestingDrawerProvider>
         <Drawer.Root defaultOpen>
           <Drawer.Trigger className={triggerClassName}>
             Open Parent Drawer
@@ -358,8 +356,8 @@ export const InitiallyOpen: Story = {
             </NestedContent>
           </Drawer.Portal>
         </Drawer.Root>
-      </div>
-    </Drawer.Registry>
+      </NestingDrawerProvider>
+    </div>
   ),
 }
 
@@ -370,8 +368,8 @@ export const CloseParentFromChild: Story = {
     const [childOpen, setChildOpen] = useState(false)
 
     return (
-      <Drawer.Registry>
-        <div className='h-screen w-full bg-slate-50 p-6 space-y-4'>
+      <div className='h-screen w-full bg-slate-50 p-6 space-y-4'>
+        <NestingDrawerProvider>
           <div className='flex gap-4 items-center'>
             <button
               type='button'
@@ -446,8 +444,8 @@ export const CloseParentFromChild: Story = {
               </NestedContent>
             </Drawer.Portal>
           </Drawer.Root>
-        </div>
-      </Drawer.Registry>
+        </NestingDrawerProvider>
+      </div>
     )
   },
 }
@@ -455,8 +453,8 @@ export const CloseParentFromChild: Story = {
 export const DifferentDirections: Story = {
   name: 'Mixed Directions',
   render: () => (
-    <Drawer.Registry>
-      <div className='h-screen w-full bg-slate-50 p-6'>
+    <div className='h-screen w-full bg-slate-50 p-6'>
+      <NestingDrawerProvider>
         <Drawer.Root dismissalDirection='down'>
           <Drawer.Trigger className={triggerClassName}>
             Open Bottom Drawer
@@ -499,7 +497,7 @@ export const DifferentDirections: Story = {
             </Drawer.Content>
           </Drawer.Portal>
         </Drawer.Root>
-      </div>
-    </Drawer.Registry>
+      </NestingDrawerProvider>
+    </div>
   ),
 }

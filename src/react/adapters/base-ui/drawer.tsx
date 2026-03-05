@@ -18,8 +18,6 @@ import {
 } from '../../use-drawer'
 
 export { NestingDrawerProvider }
-/** @deprecated Use {@link NestingDrawerProvider} instead. */
-export const DrawerRegistryProvider = NestingDrawerProvider
 
 export interface DrawerRootProps<Payload = unknown>
   extends
@@ -104,9 +102,6 @@ export interface DrawerCloseProps extends DialogCloseProps {}
 export const DrawerClose = Dialog.Close
 
 export const Drawer = {
-  NestingProvider: NestingDrawerProvider,
-  /** @deprecated Use `Drawer.NestingProvider` instead. */
-  Registry: NestingDrawerProvider,
   Root: DrawerRoot,
   Trigger: DrawerTrigger,
   Portal: DrawerPortal,
