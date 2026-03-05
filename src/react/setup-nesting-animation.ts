@@ -10,7 +10,9 @@ import {
   initAnimate,
 } from '../core'
 
-const ATTR_NESTED_OPEN = 'data-nested-drawer-open'
+const ATTR_NESTED_DRAWER_OPEN = 'data-nested-drawer-open'
+
+const noop = () => {}
 
 /**
  * Sets up nesting scale animation for a drawer element.
@@ -27,41 +29,43 @@ export function setupNestingAnimation(params: {
   element: HTMLElement
 }): () => void {
   const { registry, drawerId, element } = params
+  const drawer = registry.getNode(drawerId)
+  if (!drawer) return noop
+
+  const { nesting: initialNestingState } = drawer
+  let prevState: NestingState = initialNestingState
   const animate = initAnimate()
-  let prevState: NestingState | null = null
 
   // Apply initial nesting state without animation (e.g. defaultOpen on both parent and child)
-  const initialState = registry.getNestingState(drawerId)
-  if (initialState) {
-    prevState = initialState
-    const initialDepth = getNestingDepth(initialState)
-    if (initialDepth > 0) {
-      applyNestingStyles(element, initialDepth)
-    }
+  const initialDepth = getNestingDepth(initialNestingState)
+  if (initialDepth > 0) {
+    applyNestingStyles(element, initialDepth)
   }
 
   const unsubscribe = registry.subscribe(() => {
-    const state = registry.getNestingState(drawerId)
+    const state = registry.getNode(drawerId)
+    if (!state) return
+    const nestingState = state.nesting
 
-    // Only react when nesting state actually changes (referential equality).
+    // Only animate when nesting state actually changes (referential equality).
     // The reducer returns the same object when nothing changed, but produces
     // a new object when phase or target changes — including Scaling→Scaling
     // with a different targetDepth.
-    if (state === prevState) return
-    prevState = state
-    if (!state) return
+    if (nestingState === prevState) return
+
+    prevState = nestingState
 
     const handle = registry.registerNestingTransition(drawerId)
     if (!handle.isTransitionable) return
 
-    switch (state.phase) {
+    switch (nestingState.phase) {
       case NestingPhase.Scaling: {
-        const targetDepth = state.targetDepth
+        const targetDepth = nestingState.targetDepth
 
         if (targetDepth > 0) {
-          element.setAttribute(ATTR_NESTED_OPEN, '')
+          element.setAttribute(ATTR_NESTED_DRAWER_OPEN, '')
         } else {
-          element.removeAttribute(ATTR_NESTED_OPEN)
+          element.removeAttribute(ATTR_NESTED_DRAWER_OPEN)
         }
 
         animate
@@ -83,7 +87,7 @@ export function setupNestingAnimation(params: {
       }
 
       case NestingPhase.DragRestoring: {
-        const committedDepth = state.nestingDepth
+        const committedDepth = nestingState.nestingDepth
 
         animate
           .play(
@@ -97,13 +101,8 @@ export function setupNestingAnimation(params: {
           .catch(handle.reportCancel)
         break
       }
-      case NestingPhase.DragControlled:
-      case NestingPhase.Inactive:
-      case NestingPhase.Active:
-        break
       default:
-        const _exhaustiveCheck: never = state
-        return _exhaustiveCheck
+        break
     }
   })
 
@@ -115,11 +114,11 @@ export function setupNestingAnimation(params: {
 }
 
 function applyNestingStyles(element: HTMLElement, depth: number): void {
-  element.setAttribute(ATTR_NESTED_OPEN, '')
+  element.setAttribute(ATTR_NESTED_DRAWER_OPEN, '')
   element.style.scale = String(scaleForDepth(depth))
 }
 
 function clearNestingStyles(element: HTMLElement): void {
-  element.removeAttribute(ATTR_NESTED_OPEN)
+  element.removeAttribute(ATTR_NESTED_DRAWER_OPEN)
   element.style.scale = ''
 }

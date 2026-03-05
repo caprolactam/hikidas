@@ -118,6 +118,14 @@ export class DrawerRegistry {
     }
   }
 
+  /**
+   * return null if the id is not registered, otherwise return the node view.
+   */
+  getNode(id: DrawerId): DrawerNodeView | null {
+    const entry = this.#entries.get(id)
+    return entry ? this.#toView(entry) : null
+  }
+
   getAncestors(id: DrawerId): DrawerNodeView[] {
     const ancestors: DrawerNodeView[] = []
     let current = this.#entries.get(id)
@@ -140,6 +148,10 @@ export class DrawerRegistry {
     return entry.id === id
   }
 
+  /**
+   * @deprecated
+   * replace with getNode(id)?.nesting
+   */
   getNestingState(id: DrawerId): NestingState | null {
     const entry = this.#entries.get(id)
     if (!entry) return null

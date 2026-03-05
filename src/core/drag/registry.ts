@@ -86,13 +86,12 @@ export class DragRegistry {
 
     for (const ancestor of ancestors) {
       const instance = this.#instances.get(ancestor.id)
-      const nestingState = this.#registry.getNestingState(ancestor.id)
-      if (!(instance && nestingState)) continue
+      if (!instance) continue
 
       resolved.push({
         id: ancestor.id,
         element: instance.node,
-        baseDepth: getNestingDepth(nestingState),
+        baseDepth: getNestingDepth(ancestor.nesting),
       })
     }
 

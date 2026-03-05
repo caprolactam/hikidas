@@ -28,10 +28,10 @@ function usePhaseAnimation({
   const animate = useAnimate()
 
   useIsomorphicEffect(() => {
-    if (!elementRef.current) return
-    const element = elementRef.current
-
     function phaseAnimation() {
+      if (!elementRef.current) return
+      const element = elementRef.current
+
       const values = machine.registerTransitionPart()
       if (!values.isTransitionable) return
 
