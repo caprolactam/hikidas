@@ -90,12 +90,6 @@ export class DrawerRegistry {
    */
   #nestingMachines = new Map<DrawerId, NestingMachine>()
 
-  /**
-   * Cached snapshot for useSyncExternalStore.
-   * Invalidated (set to null) on any change; lazily rebuilt in getSnapshot().
-   */
-  #cachedSnapshot: DrawerNodeView[] | null = null
-
   // ── Lifecycle ────────────────────────────────────────────
 
   /**
@@ -167,37 +161,6 @@ export class DrawerRegistry {
 
   // ── Tree queries ─────────────────────────────────────────
 
-  getNode(id: DrawerId): DrawerNodeView | undefined {
-    const entry = this.#entries.get(id)
-    if (!entry) return undefined
-    return this.#toView(entry)
-  }
-
-  getChildren(id: DrawerId): DrawerNodeView[] {
-    const children: DrawerNodeView[] = []
-    for (const entry of this.#entries.values()) {
-      if (entry.parentId === id) {
-        children.push(this.#toView(entry))
-      }
-    }
-    return children
-  }
-
-  getDescendants(id: DrawerId): DrawerNodeView[] {
-    const descendants: DrawerNodeView[] = []
-    this.#collectDescendants(id, descendants)
-    return descendants
-  }
-
-  #collectDescendants(id: DrawerId, result: DrawerNodeView[]): void {
-    for (const entry of this.#entries.values()) {
-      if (entry.parentId === id) {
-        result.push(this.#toView(entry))
-        this.#collectDescendants(entry.id, result)
-      }
-    }
-  }
-
   getAncestors(id: DrawerId): DrawerNodeView[] {
     const ancestors: DrawerNodeView[] = []
     let current = this.#entries.get(id)
@@ -213,86 +176,13 @@ export class DrawerRegistry {
     return ancestors
   }
 
-  getSiblings(id: DrawerId): DrawerNodeView[] {
-    const entry = this.#entries.get(id)
-    if (!entry) return []
-    const siblings: DrawerNodeView[] = []
-    for (const other of this.#entries.values()) {
-      if (other.parentId === entry.parentId && other.id !== id) {
-        siblings.push(this.#toView(other))
-      }
-    }
-    return siblings
-  }
-
-  getRoots(): DrawerNodeView[] {
-    const roots: DrawerNodeView[] = []
-    for (const entry of this.#entries.values()) {
-      if (entry.parentId === null) {
-        roots.push(this.#toView(entry))
-      }
-    }
-    return roots
-  }
-
   // ── State queries ────────────────────────────────────────
 
-  getOpenNodes(): DrawerNodeView[] {
-    const open: DrawerNodeView[] = []
-    for (const entry of this.#entries.values()) {
-      if (isOpenPhase(entry.machine.snapshot.phase)) {
-        open.push(this.#toView(entry))
-      }
-    }
-    return open
-  }
-
-  /**
-   * Returns the deepest currently-open drawer.
-   * Useful for determining which drawer should receive drag gestures.
-   */
-  getFrontmostOpen(): DrawerNodeView | undefined {
-    let frontmost: DrawerNodeView | undefined
-    let maxDepth = -1
-    for (const entry of this.#entries.values()) {
-      if (isOpenPhase(entry.machine.snapshot.phase)) {
-        const depth = this.#computeDepth(entry.id)
-        if (depth > maxDepth) {
-          maxDepth = depth
-          frontmost = this.#toView(entry)
-        }
-      }
-    }
-    return frontmost
-  }
-
   isFrontmost(id: DrawerId): boolean {
-    return this.getFrontmostOpen()?.id === id
+    return this.#getFrontmostOpen()?.id === id
   }
 
-  getMachine(id: DrawerId): DrawerMachine | undefined {
-    return this.#entries.get(id)?.machine
-  }
-
-  get size(): number {
-    return this.#entries.size
-  }
-
-  // ── Flat list  ───────────────────────
-
-  /**
-   * Returns all nodes in depth-first order
-   */
-  toFlat(): DrawerNodeView[] {
-    const result: DrawerNodeView[] = []
-    const roots = this.#getRootEntries()
-    for (const root of roots) {
-      this.#walkDepthFirst(root, 0, result)
-    }
-    return result
-  }
-
-  // ── Subscribe / Snapshot (useSyncExternalStore compatible) ─
+  // ── Subscribe ─────────────────────────────────────────────
 
   /**
    * Subscribe to any change in the manager (registration, unregistration, or phase change).
@@ -303,18 +193,6 @@ export class DrawerRegistry {
     return () => {
       this.#listeners.delete(listener)
     }
-  }
-
-  /**
-   * Get a stable snapshot of all nodes in depth-first order.
-   * The snapshot is cached and only rebuilt when invalidated.
-   * Designed for useSyncExternalStore(manager.subscribe, manager.getSnapshot).
-   */
-  getSnapshot = (): DrawerNodeView[] => {
-    if (this.#cachedSnapshot === null) {
-      this.#cachedSnapshot = this.toFlat()
-    }
-    return this.#cachedSnapshot
   }
 
   // ── Nesting ──────────────────────────────────────────────
@@ -345,9 +223,9 @@ export class DrawerRegistry {
     const handle = machine.registerTransition()
     if (!handle) return null
 
-    // Wrap reportComplete to invalidate the registry's cached snapshot
-    // when the animation finishes (since this is called from React, not
-    // from the registry's own orchestration flow).
+    // Wrap reportComplete to notify listeners when the animation finishes
+    // (since this is called from React, not from the registry's own
+    // orchestration flow).
     return {
       reportComplete: () => {
         handle.reportComplete()
@@ -362,7 +240,6 @@ export class DrawerRegistry {
   // ── Internals ────────────────────────────────────────────
 
   #invalidate(): void {
-    this.#cachedSnapshot = null
     for (const listener of this.#listeners) {
       listener()
     }
@@ -527,6 +404,24 @@ export class DrawerRegistry {
     return depth
   }
 
+  /**
+   * Returns the deepest currently-open drawer.
+   */
+  #getFrontmostOpen(): DrawerNodeView | undefined {
+    let frontmost: DrawerNodeView | undefined
+    let maxDepth = -1
+    for (const entry of this.#entries.values()) {
+      if (isOpenPhase(entry.machine.snapshot.phase)) {
+        const depth = this.#computeDepth(entry.id)
+        if (depth > maxDepth) {
+          maxDepth = depth
+          frontmost = this.#toView(entry)
+        }
+      }
+    }
+    return frontmost
+  }
+
   #toView(entry: DrawerNodeEntry): DrawerNodeView {
     return {
       id: entry.id,
@@ -546,35 +441,5 @@ export class DrawerRegistry {
       current = this.#entries.get(current.parentId)
     }
     return depth
-  }
-
-  #getRootEntries(): DrawerNodeEntry[] {
-    const roots: DrawerNodeEntry[] = []
-    for (const entry of this.#entries.values()) {
-      if (entry.parentId === null) {
-        roots.push(entry)
-      }
-    }
-    return roots
-  }
-
-  #walkDepthFirst(
-    entry: DrawerNodeEntry,
-    depth: number,
-    result: DrawerNodeView[],
-  ): void {
-    result.push({
-      id: entry.id,
-      parentId: entry.parentId,
-      depth,
-      phase: entry.machine.snapshot.phase,
-      nesting:
-        this.#nestingMachines.get(entry.id)?.snapshot ?? DEFAULT_NESTING_STATE,
-    })
-    for (const child of this.#entries.values()) {
-      if (child.parentId === entry.id) {
-        this.#walkDepthFirst(child, depth + 1, result)
-      }
-    }
   }
 }

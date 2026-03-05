@@ -1,10 +1,12 @@
 /**
+ * @internal
  * Distance in px used to derive the scale ratio (vaul-style).
  * scale = (window.innerWidth - NESTING_DISPLACEMENT * depth) / window.innerWidth
  */
 export const NESTING_DISPLACEMENT = 16
 
 /**
+ * @internal
  * Compute the scale for a given nesting depth.
  * depth=0 → 1 (foreground), depth=1 → slightly scaled down, etc.
  */

@@ -3,6 +3,8 @@ import { DrawerMachine } from '../drawer/machine'
 import { Phase } from '../drawer/phase'
 import { DrawerRegistry, NestingPhase } from './registry'
 
+// Phase import is only used in close-propagation tests
+
 /**
  * Creates a DrawerMachine with sensible defaults for testing.
  */
@@ -22,17 +24,22 @@ describe('DrawerRegistry', () => {
   // ── Registration lifecycle ─────────────────────────────
 
   describe('register / unregister', () => {
-    test('registers a root node and retrieves it', () => {
+    test('registers a root node and retrieves it via getAncestors', () => {
       const manager = new DrawerRegistry()
       const machine = createMachine()
 
       manager.register({ id: 'a', parentId: null, machine })
+      manager.register({
+        id: 'child',
+        parentId: 'a',
+        machine: createMachine(),
+      })
 
-      const node = manager.getNode('a')
-      assert(node)
-      expect(node.id).toBe('a')
-      expect(node.parentId).toBeNull()
-      expect(node.depth).toBe(0)
+      const ancestors = manager.getAncestors('child')
+      expect(ancestors).toHaveLength(1)
+      expect(ancestors[0]!.id).toBe('a')
+      expect(ancestors[0]!.parentId).toBeNull()
+      expect(ancestors[0]!.depth).toBe(0)
     })
 
     test('unregister removes the node', () => {
@@ -44,11 +51,16 @@ describe('DrawerRegistry', () => {
         parentId: null,
         machine,
       })
-      expect(manager.size).toBe(1)
+      manager.register({
+        id: 'child',
+        parentId: 'a',
+        machine: createMachine(),
+      })
+      expect(manager.getAncestors('child')).toHaveLength(1)
 
       unregister()
-      expect(manager.size).toBe(0)
-      expect(manager.getNode('a')).toBeUndefined()
+      // Parent entry removed — getAncestors can no longer resolve it
+      expect(manager.getAncestors('child')).toEqual([])
     })
 
     test('unregister is idempotent', () => {
@@ -63,113 +75,30 @@ describe('DrawerRegistry', () => {
 
       unregister()
       expect(() => unregister()).not.toThrow()
-      expect(manager.size).toBe(0)
-    })
-
-    test('size reflects the number of registered nodes', () => {
-      const manager = new DrawerRegistry()
-
-      const u1 = manager.register({
-        id: 'a',
-        parentId: null,
-        machine: createMachine(),
-      })
-      const u2 = manager.register({
-        id: 'b',
-        parentId: null,
-        machine: createMachine(),
-      })
-      expect(manager.size).toBe(2)
-
-      u1()
-      expect(manager.size).toBe(1)
-
-      u2()
-      expect(manager.size).toBe(0)
     })
   })
 
   // ── Tree queries ───────────────────────────────────────
 
   describe('tree queries', () => {
-    /**
-     * Build a three-level tree for testing:
-     *
-     *   root
-     *   ├── child1
-     *   │   └── grandchild
-     *   └── child2
-     */
-    function buildTree() {
+    test('getAncestors returns ancestors from immediate parent to root', () => {
       const manager = new DrawerRegistry()
-      const machines = {
-        root: createMachine(),
-        child1: createMachine(),
-        child2: createMachine(),
-        grandchild: createMachine(),
-      }
 
-      manager.register({ id: 'root', parentId: null, machine: machines.root })
+      manager.register({
+        id: 'root',
+        parentId: null,
+        machine: createMachine(),
+      })
       manager.register({
         id: 'child1',
         parentId: 'root',
-        machine: machines.child1,
-      })
-      manager.register({
-        id: 'child2',
-        parentId: 'root',
-        machine: machines.child2,
+        machine: createMachine(),
       })
       manager.register({
         id: 'grandchild',
         parentId: 'child1',
-        machine: machines.grandchild,
+        machine: createMachine(),
       })
-
-      return { manager, machines }
-    }
-
-    test('depth is correct for each level', () => {
-      const { manager } = buildTree()
-
-      expect(manager.getNode('root')?.depth).toBe(0)
-      expect(manager.getNode('child1')?.depth).toBe(1)
-      expect(manager.getNode('child2')?.depth).toBe(1)
-      expect(manager.getNode('grandchild')?.depth).toBe(2)
-    })
-
-    test('getChildren returns direct children only', () => {
-      const { manager } = buildTree()
-
-      const children = manager.getChildren('root')
-      const ids = children.map((n) => n.id).sort()
-      expect(ids).toEqual(['child1', 'child2'])
-    })
-
-    test('getChildren returns empty array for leaf nodes', () => {
-      const { manager } = buildTree()
-
-      expect(manager.getChildren('grandchild')).toEqual([])
-    })
-
-    test('getDescendants returns all descendants recursively', () => {
-      const { manager } = buildTree()
-
-      const descendants = manager.getDescendants('root')
-      const ids = descendants.map((n) => n.id).sort()
-      expect(ids).toEqual(['child1', 'child2', 'grandchild'])
-    })
-
-    test('getDescendants of child1 returns only grandchild', () => {
-      const { manager } = buildTree()
-
-      const descendants = manager.getDescendants('child1')
-      expect(descendants).toHaveLength(1)
-      expect(descendants[0]!.id).toBe('grandchild')
-    })
-
-    test('getAncestors returns ancestors from immediate parent to root', () => {
-      const { manager } = buildTree()
 
       const ancestors = manager.getAncestors('grandchild')
       const ids = ancestors.map((n) => n.id)
@@ -177,106 +106,15 @@ describe('DrawerRegistry', () => {
     })
 
     test('getAncestors of root returns empty array', () => {
-      const { manager } = buildTree()
-
-      expect(manager.getAncestors('root')).toEqual([])
-    })
-
-    test('getSiblings returns nodes with same parentId', () => {
-      const { manager } = buildTree()
-
-      const siblings = manager.getSiblings('child1')
-      expect(siblings).toHaveLength(1)
-      expect(siblings[0]!.id).toBe('child2')
-    })
-
-    test('getSiblings of a lone child returns empty array', () => {
-      const { manager } = buildTree()
-
-      expect(manager.getSiblings('grandchild')).toEqual([])
-    })
-
-    test('getRoots returns only root nodes', () => {
-      const { manager } = buildTree()
-
-      const roots = manager.getRoots()
-      expect(roots).toHaveLength(1)
-      expect(roots[0]!.id).toBe('root')
-    })
-
-    test('getRoots with multiple roots', () => {
-      const manager = new DrawerRegistry()
-      manager.register({
-        id: 'r1',
-        parentId: null,
-        machine: createMachine(),
-      })
-      manager.register({
-        id: 'r2',
-        parentId: null,
-        machine: createMachine(),
-      })
-
-      const roots = manager.getRoots()
-      const ids = roots.map((n) => n.id).sort()
-      expect(ids).toEqual(['r1', 'r2'])
-    })
-  })
-
-  // ── State queries ──────────────────────────────────────
-
-  describe('state queries', () => {
-    test('getOpenNodes returns only open drawers', () => {
-      const manager = new DrawerRegistry()
-      const openMachine = createMachine(true) // starts in Idle
-      const closedMachine = createMachine(false) // starts in Closed
-
-      manager.register({ id: 'open', parentId: null, machine: openMachine })
-      manager.register({
-        id: 'closed',
-        parentId: null,
-        machine: closedMachine,
-      })
-
-      const openNodes = manager.getOpenNodes()
-      expect(openNodes).toHaveLength(1)
-      expect(openNodes[0]!.id).toBe('open')
-    })
-
-    test('getFrontmostOpen returns the deepest open drawer', () => {
       const manager = new DrawerRegistry()
 
       manager.register({
         id: 'root',
         parentId: null,
-        machine: createMachine(true),
-      })
-      manager.register({
-        id: 'child',
-        parentId: 'root',
-        machine: createMachine(true),
-      })
-      manager.register({
-        id: 'grandchild',
-        parentId: 'child',
-        machine: createMachine(false), // closed
+        machine: createMachine(),
       })
 
-      const front = manager.getFrontmostOpen()
-      expect(front).toBeDefined()
-      expect(front!.id).toBe('child')
-      expect(front!.depth).toBe(1)
-    })
-
-    test('getFrontmostOpen returns undefined when no drawers are open', () => {
-      const manager = new DrawerRegistry()
-      manager.register({
-        id: 'a',
-        parentId: null,
-        machine: createMachine(false),
-      })
-
-      expect(manager.getFrontmostOpen()).toBeUndefined()
+      expect(manager.getAncestors('root')).toEqual([])
     })
 
     test('isFrontmost correctly identifies the frontmost drawer', () => {
@@ -297,91 +135,22 @@ describe('DrawerRegistry', () => {
       expect(manager.isFrontmost('parent')).toBe(false)
     })
 
-    test('getMachine returns the DrawerMachine for a registered id', () => {
+    test('isFrontmost returns false when no drawers are open', () => {
       const manager = new DrawerRegistry()
-      const machine = createMachine()
+      manager.register({
+        id: 'a',
+        parentId: null,
+        machine: createMachine(false),
+      })
 
-      manager.register({ id: 'a', parentId: null, machine })
-
-      expect(manager.getMachine('a')).toBe(machine)
-    })
-
-    test('getMachine returns undefined for unregistered id', () => {
-      const manager = new DrawerRegistry()
-
-      expect(manager.getMachine('nonexistent')).toBeUndefined()
+      expect(manager.isFrontmost('a')).toBe(false)
     })
   })
 
-  // ── toFlat ─────────────────────────────────────────────
+  // ── Subscribe ──────────────────────────────────────────
 
-  describe('toFlat', () => {
-    test('returns nodes in depth-first order with correct depths', () => {
-      const manager = new DrawerRegistry()
-
-      manager.register({
-        id: 'root',
-        parentId: null,
-        machine: createMachine(),
-      })
-      manager.register({
-        id: 'child1',
-        parentId: 'root',
-        machine: createMachine(),
-      })
-      manager.register({
-        id: 'grandchild',
-        parentId: 'child1',
-        machine: createMachine(),
-      })
-      manager.register({
-        id: 'child2',
-        parentId: 'root',
-        machine: createMachine(),
-      })
-
-      const flat = manager.toFlat()
-      const result = flat.map((n) => ({ id: n.id, depth: n.depth }))
-
-      expect(result).toEqual([
-        { id: 'root', depth: 0 },
-        { id: 'child1', depth: 1 },
-        { id: 'grandchild', depth: 2 },
-        { id: 'child2', depth: 1 },
-      ])
-    })
-
-    test('returns empty array when no nodes are registered', () => {
-      const manager = new DrawerRegistry()
-
-      expect(manager.toFlat()).toEqual([])
-    })
-
-    test('multiple roots appear in order', () => {
-      const manager = new DrawerRegistry()
-
-      manager.register({
-        id: 'r1',
-        parentId: null,
-        machine: createMachine(),
-      })
-      manager.register({
-        id: 'r2',
-        parentId: null,
-        machine: createMachine(),
-      })
-
-      const flat = manager.toFlat()
-      expect(flat).toHaveLength(2)
-      expect(flat[0]!.depth).toBe(0)
-      expect(flat[1]!.depth).toBe(0)
-    })
-  })
-
-  // ── Subscribe / Snapshot ───────────────────────────────
-
-  describe('subscribe and getSnapshot', () => {
-    test('subscribe listener is called on register', () => {
+  describe('subscribe', () => {
+    test('listener is called on register', () => {
       const manager = new DrawerRegistry()
       const listener = vi.fn()
 
@@ -396,7 +165,7 @@ describe('DrawerRegistry', () => {
       expect(listener).toHaveBeenCalledTimes(1)
     })
 
-    test('subscribe listener is called on unregister', () => {
+    test('listener is called on unregister', () => {
       const manager = new DrawerRegistry()
       const machine = createMachine()
       const unregister = manager.register({
@@ -412,7 +181,7 @@ describe('DrawerRegistry', () => {
       expect(listener).toHaveBeenCalledTimes(1)
     })
 
-    test('subscribe listener is called on machine phase change', () => {
+    test('listener is called on machine phase change', () => {
       const manager = new DrawerRegistry()
       const machine = createMachine(false)
 
@@ -442,96 +211,11 @@ describe('DrawerRegistry', () => {
 
       expect(listener).not.toHaveBeenCalled()
     })
-
-    test('getSnapshot returns cached reference if nothing changed', () => {
-      const manager = new DrawerRegistry()
-      manager.register({
-        id: 'a',
-        parentId: null,
-        machine: createMachine(),
-      })
-
-      const snap1 = manager.getSnapshot()
-      const snap2 = manager.getSnapshot()
-      expect(snap1).toBe(snap2) // same reference
-    })
-
-    test('getSnapshot returns a new reference after a change', () => {
-      const manager = new DrawerRegistry()
-      manager.register({
-        id: 'a',
-        parentId: null,
-        machine: createMachine(),
-      })
-
-      const snap1 = manager.getSnapshot()
-
-      manager.register({
-        id: 'b',
-        parentId: null,
-        machine: createMachine(),
-      })
-
-      const snap2 = manager.getSnapshot()
-      expect(snap1).not.toBe(snap2)
-    })
-
-    test('getSnapshot reflects phase changes from machines', () => {
-      const manager = new DrawerRegistry()
-      const machine = createMachine(false) // Closed
-
-      manager.register({ id: 'a', parentId: null, machine })
-
-      const snap1 = manager.getSnapshot()
-      expect(snap1[0]!.phase).toBe(Phase.Closed)
-
-      machine.requestOpen() // Closed -> Opening
-
-      const snap2 = manager.getSnapshot()
-      expect(snap2[0]!.phase).toBe(Phase.Opening)
-    })
   })
 
   // ── Edge cases ─────────────────────────────────────────
 
   describe('edge cases', () => {
-    test('child survives parent unregister and becomes a root-like orphan', () => {
-      const manager = new DrawerRegistry()
-
-      const unregParent = manager.register({
-        id: 'parent',
-        parentId: null,
-        machine: createMachine(),
-      })
-      manager.register({
-        id: 'child',
-        parentId: 'parent',
-        machine: createMachine(),
-      })
-
-      expect(manager.getNode('child')?.depth).toBe(1)
-
-      unregParent()
-
-      // Child still exists but parentId points to a non-existent node
-      const child = manager.getNode('child')
-      expect(child).toBeDefined()
-      expect(child!.parentId).toBe('parent')
-      // parentId is non-null but the parent entry doesn't exist, so depth
-      // counts the one hop to the missing parent before stopping → depth = 1
-      expect(manager.getNode('child')?.depth).toBe(1)
-    })
-
-    test('getNode returns undefined for non-existent id', () => {
-      const manager = new DrawerRegistry()
-      expect(manager.getNode('nonexistent')).toBeUndefined()
-    })
-
-    test('depth is undefined for non-existent id', () => {
-      const manager = new DrawerRegistry()
-      expect(manager.getNode('nonexistent')?.depth).toBeUndefined()
-    })
-
     test('phase unsubscription on unregister prevents stale notifications', () => {
       const manager = new DrawerRegistry()
       const machine = createMachine(false)
@@ -762,20 +446,6 @@ describe('DrawerRegistry', () => {
       expect(rootState.nestingDepth).toBe(1)
     })
 
-    test('reportComplete invalidates snapshot', () => {
-      const { manager, machines } = buildNestingPair()
-
-      machines.child.requestOpen()
-
-      const snap1 = manager.getSnapshot()
-      const handle = manager.registerNestingTransition('root')
-      assert(handle)
-      handle.reportComplete()
-
-      const snap2 = manager.getSnapshot()
-      expect(snap1).not.toBe(snap2)
-    })
-
     test('reportComplete notifies subscribe listeners', () => {
       const { manager, machines } = buildNestingPair()
 
@@ -900,30 +570,6 @@ describe('DrawerRegistry', () => {
         assert(state.phase === NestingPhase.Scaling)
         expect(state.targetDepth).toBe(0)
       }
-    })
-
-    test('nesting fields appear in DrawerNodeView from getNode', () => {
-      const { manager, machines } = buildNestingPair()
-
-      machines.child.requestOpen()
-
-      const rootView = manager.getNode('root')
-      assert(rootView)
-      assert(rootView.nesting.phase === NestingPhase.Scaling)
-      expect(rootView.nesting.nestingDepth).toBe(0)
-      expect(rootView.nesting.targetDepth).toBe(1)
-    })
-
-    test('nesting fields appear in getSnapshot', () => {
-      const { manager, machines } = buildNestingPair()
-
-      machines.child.requestOpen()
-
-      const snapshot = manager.getSnapshot()
-      const rootSnap = snapshot.find((n) => n.id === 'root')
-      assert(rootSnap)
-      assert(rootSnap.nesting.phase === NestingPhase.Scaling)
-      expect(rootSnap.nesting.targetDepth).toBe(1)
     })
 
     test('getNestingState returns default for unregistered id', () => {
