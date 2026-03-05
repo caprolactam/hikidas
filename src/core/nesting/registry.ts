@@ -1,28 +1,19 @@
 import type { DrawerMachine } from '../drawer/machine'
 import { Phase, isOpenPhase } from '../drawer/phase'
-import { NestingMachine, type NestingTransitionHandle } from './machine'
+import { NestingMachine } from './machine'
 import { type NestingState, NestingPhase, getNestingDepth } from './reducer'
 
-// Re-export nesting types for consumers
-export {
-  NestingPhase,
-  type NestingState,
-  type NestingTransitionHandle,
-  getNestingDepth,
+export { NestingPhase, type NestingState, getNestingDepth }
+
+export interface ActiveNestingTransitionResult {
+  isTransitionable: true
+  reportComplete: () => void
+  reportCancel: () => void
 }
 
-// ── Helpers ──────────────────────────────────────────────────
-
-/**
- * Whether a phase contributes to nesting depth.
- * Excludes `Closed` and `Closing` — once a child begins closing,
- * the parent should start scaling back up (parallel animation).
- */
-function isNestingActivePhase(phase: Phase): boolean {
-  return phase !== Phase.Closed && phase !== Phase.Closing
+export interface InactiveNestingTransitionResult {
+  isTransitionable: false
 }
-
-// ── Types ────────────────────────────────────────────────────
 
 export type DrawerId = string
 
@@ -32,79 +23,37 @@ export interface DrawerRegistration {
   machine: DrawerMachine
 }
 
-/**
- * Internal entry stored in the flat map.
- * Corresponds to the article's "FlatNode" concept — a parentId-based flat model
- * rather than a recursive tree structure.
- */
 interface DrawerNodeEntry {
   readonly id: DrawerId
   readonly parentId: DrawerId | null
   readonly machine: DrawerMachine
+  readonly nestingMachine: NestingMachine
+  readonly unsubscribePhase: () => void
 }
 
-/**
- * Read-only view of a drawer node exposed to consumers.
- * Enriched with computed `depth` and live `phase` from the machine snapshot,
- * plus nesting state derived from the drawer tree.
- */
 export interface DrawerNodeView {
   readonly id: DrawerId
   readonly parentId: DrawerId | null
   readonly depth: number
   readonly phase: Phase
-  /** Nesting state (discriminated union keyed by NestingPhase). */
   readonly nesting: NestingState
 }
 
-// ── Registry ──────────────────────────────────────────────────
-
 type ChangeListener = () => void
-
-const DEFAULT_NESTING_STATE: NestingState = { phase: NestingPhase.Inactive }
 
 /** @internal */
 export class DrawerRegistry {
-  /**
-   * Flat map of all registered drawer nodes.
-   * This is the "one-dimensional data structure" described in the reference article —
-   * we store `parentId` on each entry rather than using a recursive tree type,
-   * making traversal and lookup O(1) by id and O(n) for scans.
-   */
   #entries = new Map<DrawerId, DrawerNodeEntry>()
-
-  /**
-   * Cleanup functions for machine.subscribePhaseChange per drawer.
-   */
-  #phaseUnsubscribers = new Map<DrawerId, () => void>()
-
-  /**
-   * Generic change listeners notified on any structural or phase change.
-   * Designed for useSyncExternalStore integration.
-   */
   #listeners = new Set<ChangeListener>()
 
-  /**
-   * Nesting state machine per drawer node.
-   * Owns committed depth, target depth, nesting phase, and generation tracking.
-   */
-  #nestingMachines = new Map<DrawerId, NestingMachine>()
-
-  // ── Lifecycle ────────────────────────────────────────────
-
-  /**
-   * Register a drawer node in the manager.
-   * Returns an unregister function for cleanup.
-   */
   register(registration: DrawerRegistration): () => void {
     const { id, parentId, machine } = registration
 
     if (__DEV__) {
       if (this.#entries.has(id)) {
-        console.warn(
-          `[DrawerRegistry] Drawer "${id}" is already registered. Skipping duplicate registration.`,
+        throw new Error(
+          `[DrawerRegistry] Drawer "${id}" is already registered. Duplicate registration is not allowed.`,
         )
-        return () => {}
       }
       if (parentId && !this.#entries.has(parentId)) {
         console.warn(
@@ -113,20 +62,20 @@ export class DrawerRegistry {
       }
     }
 
-    const entry: DrawerNodeEntry = { id, parentId, machine }
-    this.#entries.set(id, entry)
-
-    // Initialize nesting machine — compute depth immediately in case open
-    // descendants were registered before this node.
     const initialDepth = this.#computeNestingDepth(id)
-    this.#nestingMachines.set(id, new NestingMachine(initialDepth))
 
-    // Subscribe to the machine's phase changes so the manager snapshot stays fresh
-    // and nesting state for ancestors is updated reactively.
     const unsubPhase = machine.subscribePhaseChange(() => {
       this.#onPhaseChange(id)
     })
-    this.#phaseUnsubscribers.set(id, unsubPhase)
+
+    const entry: DrawerNodeEntry = {
+      id,
+      parentId,
+      machine,
+      nestingMachine: new NestingMachine(initialDepth),
+      unsubscribePhase: unsubPhase,
+    }
+    this.#entries.set(id, entry)
 
     // If the newly registered node is already nesting-active (e.g. initialOpen),
     // commit ancestor nesting depths immediately — no animation for initial state.
@@ -141,25 +90,32 @@ export class DrawerRegistry {
 
   #unregister(id: DrawerId): void {
     const entry = this.#entries.get(id)
-    const unsub = this.#phaseUnsubscribers.get(id)
-    if (unsub) {
-      unsub()
-      this.#phaseUnsubscribers.delete(id)
-    }
+    if (!entry) return
 
-    this.#nestingMachines.delete(id)
+    entry.unsubscribePhase()
     this.#entries.delete(id)
 
     // Recalculate nesting depth for ancestors — removing a node may reduce
     // the number of open descendants above an ancestor.
-    if (entry?.parentId != null) {
+    if (entry.parentId != null) {
       this.#updateAncestorNestingDepths(entry.parentId)
     }
 
     this.#invalidate()
   }
 
-  // ── Tree queries ─────────────────────────────────────────
+  subscribe = (listener: ChangeListener): (() => void) => {
+    this.#listeners.add(listener)
+    return () => {
+      this.#listeners.delete(listener)
+    }
+  }
+
+  #invalidate(): void {
+    for (const listener of this.#listeners) {
+      listener()
+    }
+  }
 
   getAncestors(id: DrawerId): DrawerNodeView[] {
     const ancestors: DrawerNodeView[] = []
@@ -176,57 +132,31 @@ export class DrawerRegistry {
     return ancestors
   }
 
-  // ── State queries ────────────────────────────────────────
-
   isFrontmost(id: DrawerId): boolean {
-    return this.#getFrontmostOpen()?.id === id
+    const entry = this.#getFrontmostOpen()
+    if (!entry) return false
+
+    return entry.id === id
   }
 
-  // ── Subscribe ─────────────────────────────────────────────
+  getNestingState(id: DrawerId): NestingState | null {
+    const entry = this.#entries.get(id)
+    if (!entry) return null
 
-  /**
-   * Subscribe to any change in the manager (registration, unregistration, or phase change).
-   * Follows the same contract as DrawerMachine.subscribePhaseChange.
-   */
-  subscribe = (listener: ChangeListener): (() => void) => {
-    this.#listeners.add(listener)
-    return () => {
-      this.#listeners.delete(listener)
-    }
+    return entry.nestingMachine.snapshot
   }
 
-  // ── Nesting ──────────────────────────────────────────────
+  registerNestingTransition(
+    id: DrawerId,
+  ): ActiveNestingTransitionResult | InactiveNestingTransitionResult {
+    const entry = this.#entries.get(id)
+    if (!entry) return { isTransitionable: false }
 
-  /**
-   * Get the nesting state for a specific drawer node.
-   */
-  getNestingState(id: DrawerId): NestingState {
-    return this.#nestingMachines.get(id)?.snapshot ?? DEFAULT_NESTING_STATE
-  }
+    const handle = entry.nestingMachine.registerTransition()
+    if (!handle) return { isTransitionable: false }
 
-  /**
-   * Register interest in a nesting transition for a drawer.
-   * Returns a handle to report animation completion, or `null` if no
-   * animation is needed.
-   *
-   * Works for all animating nesting phases:
-   * - `Scaling`: scale depth transition (child open/close)
-   * - `DragRestoring`: scale returning to committed depth after drag cancel
-   *
-   * The React layer calls this when it detects a nesting phase change
-   * that requires animation.
-   */
-  registerNestingTransition(id: DrawerId): NestingTransitionHandle | null {
-    const machine = this.#nestingMachines.get(id)
-    if (!machine) return null
-
-    const handle = machine.registerTransition()
-    if (!handle) return null
-
-    // Wrap reportComplete to notify listeners when the animation finishes
-    // (since this is called from React, not from the registry's own
-    // orchestration flow).
     return {
+      isTransitionable: true,
       reportComplete: () => {
         handle.reportComplete()
         this.#invalidate()
@@ -237,102 +167,90 @@ export class DrawerRegistry {
     }
   }
 
-  // ── Internals ────────────────────────────────────────────
-
-  #invalidate(): void {
-    for (const listener of this.#listeners) {
-      listener()
-    }
-  }
-
   /**
-   * Called when a registered machine's phase changes.
-   * Updates nesting depth and nesting phase for all ancestors reactively.
+   * Coordinates cascading effects when a drawer's phase changes.
+   *
+   * Two directions of propagation:
+   * - Downward (Closing): force-close open children so they animate out together.
+   * - Upward (all phases): notify ancestors to update their scale state.
    */
   #onPhaseChange(id: DrawerId): void {
     const entry = this.#entries.get(id)
     if (!entry) return
 
-    const childPhase = entry.machine.snapshot.phase
+    const phase = entry.machine.snapshot.phase
 
-    // When a drawer starts closing, propagate close to all direct open children.
-    // Each child's own #onPhaseChange will recurse to grandchildren automatically.
-    if (childPhase === Phase.Closing) {
-      for (const other of this.#entries.values()) {
-        if (
-          other.parentId === id &&
-          isOpenPhase(other.machine.snapshot.phase)
-        ) {
-          other.machine.requestClose()
+    switch (phase) {
+      // When a drawer starts closing, propagate close to all direct open children.
+      // Each child's own #onPhaseChange will recurse to grandchildren automatically.
+      case Phase.Closing:
+        for (const child of this.#entries.values()) {
+          if (
+            child.parentId === id &&
+            isOpenPhase(child.machine.snapshot.phase)
+          ) {
+            child.machine.requestClose()
+          }
         }
-      }
-    }
+        break
 
-    if (__DEV__) {
       // Warn if a sibling is already open (one open child at a time constraint)
-      if (entry.parentId != null) {
-        if (childPhase === Phase.Opening) {
-          for (const other of this.#entries.values()) {
+      case Phase.Opening:
+        if (__DEV__ && entry.parentId != null) {
+          for (const sibling of this.#entries.values()) {
             if (
-              other.parentId === entry.parentId &&
-              other.id !== id &&
-              isOpenPhase(other.machine.snapshot.phase)
+              sibling.parentId === entry.parentId &&
+              sibling.id !== id &&
+              isOpenPhase(sibling.machine.snapshot.phase)
             ) {
               console.warn(
-                `[DrawerRegistry] Drawer "${id}" is opening while sibling "${other.id}" is already open. ` +
+                `[DrawerRegistry] Drawer "${id}" is opening while sibling "${sibling.id}" is already open. ` +
                   `Only one child drawer should be open at a time.`,
               )
               break
             }
           }
         }
-      }
+        break
+
+      case Phase.Dragging:
+        if (entry.parentId != null) {
+          this.#enterAncestorDragControlled(entry.parentId)
+        }
+        break
+
+      case Phase.Settling:
+        if (entry.parentId != null) {
+          this.#restoreAncestorsFromDrag(entry.parentId)
+        }
+        break
+      default:
+        break
     }
 
-    // Update ancestor nesting phases based on child's drag lifecycle
-    if (entry.parentId != null) {
-      if (childPhase === Phase.Dragging) {
-        this.#enterAncestorDragControlled(entry.parentId)
-      } else if (childPhase === Phase.Settling) {
-        this.#restoreAncestorsFromDrag(entry.parentId)
-      }
-    }
-
-    // Update nesting depths for all ancestors of the changed node.
-    // This also sets Scaling phase when target depth changes.
-    if (entry.parentId != null) {
-      this.#updateAncestorNestingDepths(entry.parentId)
-    }
-
+    if (entry.parentId) this.#updateAncestorNestingDepths(entry.parentId)
     this.#invalidate()
   }
 
-  /**
-   * Set ancestors to DragControlled phase.
-   */
   #enterAncestorDragControlled(startId: DrawerId): void {
     let currentId: DrawerId | null = startId
     while (currentId != null) {
       const entry = this.#entries.get(currentId)
       if (!entry) break
 
-      this.#nestingMachines.get(currentId)?.enterDragControlled()
+      entry.nestingMachine.enterDragControlled()
 
       currentId = entry.parentId
     }
   }
 
-  /**
-   * Transition ancestors from DragControlled to DragRestoring.
-   * Only transitions ancestors that are currently in DragControlled phase.
-   */
   #restoreAncestorsFromDrag(startId: DrawerId): void {
     let currentId: DrawerId | null = startId
     while (currentId != null) {
       const entry = this.#entries.get(currentId)
       if (!entry) break
 
-      this.#nestingMachines.get(currentId)?.restoreFromDrag()
+      entry.nestingMachine.restoreFromDrag()
 
       currentId = entry.parentId
     }
@@ -348,8 +266,8 @@ export class DrawerRegistry {
       const entry = this.#entries.get(currentId)
       if (!entry) break
 
-      const newTarget = this.#computeNestingDepth(currentId)
-      this.#nestingMachines.get(currentId)?.depthChanged(newTarget)
+      const newDepth = this.#computeNestingDepth(entry.id)
+      entry.nestingMachine.depthChanged(newDepth)
 
       currentId = entry.parentId
     }
@@ -366,8 +284,8 @@ export class DrawerRegistry {
       const entry = this.#entries.get(currentId)
       if (!entry) break
 
-      const newDepth = this.#computeNestingDepth(currentId)
-      this.#nestingMachines.get(currentId)?.depthCommitted(newDepth)
+      const newDepth = this.#computeNestingDepth(entry.id)
+      entry.nestingMachine.depthCommitted(newDepth)
 
       currentId = entry.parentId
     }
@@ -376,9 +294,6 @@ export class DrawerRegistry {
   /**
    * Compute the nesting depth for a node: the length of the longest
    * chain of open descendants.
-   *
-   * Under the "one open child at a time" constraint, this is effectively
-   * a linear chain traversal (O(depth)).
    */
   #computeNestingDepth(id: DrawerId): number {
     let depth = 0
@@ -404,18 +319,15 @@ export class DrawerRegistry {
     return depth
   }
 
-  /**
-   * Returns the deepest currently-open drawer.
-   */
-  #getFrontmostOpen(): DrawerNodeView | undefined {
-    let frontmost: DrawerNodeView | undefined
+  #getFrontmostOpen(): DrawerNodeEntry | undefined {
+    let frontmost: DrawerNodeEntry | undefined
     let maxDepth = -1
     for (const entry of this.#entries.values()) {
       if (isOpenPhase(entry.machine.snapshot.phase)) {
         const depth = this.#computeDepth(entry.id)
         if (depth > maxDepth) {
           maxDepth = depth
-          frontmost = this.#toView(entry)
+          frontmost = entry
         }
       }
     }
@@ -428,8 +340,7 @@ export class DrawerRegistry {
       parentId: entry.parentId,
       depth: this.#computeDepth(entry.id),
       phase: entry.machine.snapshot.phase,
-      nesting:
-        this.#nestingMachines.get(entry.id)?.snapshot ?? DEFAULT_NESTING_STATE,
+      nesting: entry.nestingMachine.snapshot,
     }
   }
 
@@ -442,4 +353,13 @@ export class DrawerRegistry {
     }
     return depth
   }
+}
+
+/**
+ * Whether a phase contributes to nesting depth.
+ * Excludes `Closed` and `Closing` — once a child begins closing,
+ * the parent should start scaling back up (for parallel animation).
+ */
+function isNestingActivePhase(phase: Phase): boolean {
+  return phase !== Phase.Closed && phase !== Phase.Closing
 }

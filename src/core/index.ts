@@ -34,6 +34,7 @@ export {
 export type {
   DrawerId,
   NestingState,
-  NestingTransitionHandle,
+  ActiveNestingTransitionResult,
+  InactiveNestingTransitionResult,
 } from './nesting/registry'
 export { scaleForDepth } from './nesting/scale'

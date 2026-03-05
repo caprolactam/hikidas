@@ -21,11 +21,6 @@
  *        ↓
  *   DragRestoring ──── anim complete ──→ Active
  */
-/**
- * @internal
- *
- * Phase of a drawer's nesting state (as const object).
- */
 export const NestingPhase = {
   /** No nesting-active descendants. Depth = 0. Scale = 1. */
   Inactive: 'inactive',
@@ -55,7 +50,10 @@ export type NestingPhase = (typeof NestingPhase)[keyof typeof NestingPhase]
  */
 export type NestingState =
   | { readonly phase: typeof NestingPhase.Inactive }
-  | { readonly phase: typeof NestingPhase.Active; readonly nestingDepth: number }
+  | {
+      readonly phase: typeof NestingPhase.Active
+      readonly nestingDepth: number
+    }
   | {
       readonly phase: typeof NestingPhase.Scaling
       readonly nestingDepth: number

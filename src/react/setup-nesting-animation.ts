@@ -32,10 +32,12 @@ export function setupNestingAnimation(params: {
 
   // Apply initial nesting state without animation (e.g. defaultOpen on both parent and child)
   const initialState = registry.getNestingState(drawerId)
-  prevState = initialState
-  const initialDepth = getNestingDepth(initialState)
-  if (initialDepth > 0) {
-    applyNestingStyles(element, initialDepth)
+  if (initialState) {
+    prevState = initialState
+    const initialDepth = getNestingDepth(initialState)
+    if (initialDepth > 0) {
+      applyNestingStyles(element, initialDepth)
+    }
   }
 
   const unsubscribe = registry.subscribe(() => {
@@ -47,9 +49,10 @@ export function setupNestingAnimation(params: {
     // with a different targetDepth.
     if (state === prevState) return
     prevState = state
+    if (!state) return
 
     const handle = registry.registerNestingTransition(drawerId)
-    if (!handle) return
+    if (!handle.isTransitionable) return
 
     switch (state.phase) {
       case NestingPhase.Scaling: {
