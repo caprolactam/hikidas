@@ -1,6 +1,6 @@
 import type { Direction } from '../drawer/direction'
-import type { TransitionablePhase, TransitionHint } from '../drawer/reducer'
-import { Phase, TransitionKind } from '../drawer/reducer'
+import type { TransitionablePhase, TransitionHint } from '../drawer/phase'
+import { Phase, TransitionKind } from '../drawer/phase'
 import type { SnapMode } from '../drawer/snap-mode'
 import { getActiveSnapRatio } from '../drawer/snap-mode'
 import type { AnimatableProperties, SpringAnimateConfig } from './animate'

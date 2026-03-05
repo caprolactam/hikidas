@@ -4,7 +4,7 @@ import {
   type TransitionHint,
   type DrawerConfig,
   type EndDragPayload,
-} from './types'
+} from './phase'
 import {
   getActiveSnapRatio,
   getMinSnapRatio,

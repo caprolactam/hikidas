@@ -22,7 +22,8 @@ export const TransitionKind = {
 } as const
 
 /** @internal */
-export type TransitionKind = (typeof TransitionKind)[keyof typeof TransitionKind]
+export type TransitionKind =
+  (typeof TransitionKind)[keyof typeof TransitionKind]
 
 /** @internal */
 export type TransitionHint =
@@ -52,4 +53,20 @@ export interface EndDragPayload {
   dragDistanceRatio: number
   /** Constrained drawer size in px on the drag axis at drag end */
   drawerSize: number
+}
+
+/** @internal */
+export function isOpenPhase(phase: Phase): boolean {
+  return phase !== Phase.Closed
+}
+
+/** @internal */
+export function isTransitionablePhase(
+  phase: Phase,
+): phase is TransitionablePhase {
+  return (
+    phase === Phase.Opening ||
+    phase === Phase.Closing ||
+    phase === Phase.Settling
+  )
 }

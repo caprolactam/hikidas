@@ -1,5 +1,5 @@
 import type { DrawerMachine } from '../drawer/machine'
-import { Phase } from '../drawer/reducer'
+import { Phase } from '../drawer/phase'
 import {
   getActiveSnapRatio,
   getMaxSnapRatio,
@@ -169,8 +169,7 @@ export function createDragController(
     if (!(phase === Phase.Tracking || phase === Phase.Dragging)) return
 
     const pointerPos = { x: e.clientX, y: e.clientY }
-    const draggedDistance =
-      dragStartCoords.calcDraggedDistance(pointerPos)
+    const draggedDistance = dragStartCoords.calcDraggedDistance(pointerPos)
 
     switch (phase) {
       case Phase.Tracking: {

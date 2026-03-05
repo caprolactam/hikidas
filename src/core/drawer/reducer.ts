@@ -1,6 +1,5 @@
 import type { Direction, DismissalDirection } from './direction'
 import { evaluateDragEnd } from './evaluate-drag-end'
-import { type SnapMode, computeSnapMode, snapModeEquals } from './snap-mode'
 import {
   Phase,
   TransitionKind,
@@ -8,16 +7,8 @@ import {
   type TransitionablePhase,
   type DrawerConfig,
   type EndDragPayload,
-} from './types'
-
-export {
-  Phase,
-  TransitionKind,
-  type TransitionHint,
-  type TransitionablePhase,
-  type DrawerConfig,
-  type EndDragPayload,
-}
+} from './phase'
+import { type SnapMode, computeSnapMode, snapModeEquals } from './snap-mode'
 
 /** @internal */
 export type DrawerConfigInput = Omit<DrawerConfig, 'direction'> & {
@@ -238,22 +229,6 @@ export function drawerReducerInit({
     config,
     transitionHint: DEFAULT_HINT,
   }
-}
-
-/** @internal */
-export function isOpenPhase(phase: Phase): boolean {
-  return phase !== Phase.Closed
-}
-
-/** @internal */
-export function isTransitionablePhase(
-  phase: Phase,
-): phase is TransitionablePhase {
-  return (
-    phase === Phase.Opening ||
-    phase === Phase.Closing ||
-    phase === Phase.Settling
-  )
 }
 
 function shouldStartDrag({

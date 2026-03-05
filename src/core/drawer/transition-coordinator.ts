@@ -2,7 +2,7 @@ import {
   type Phase,
   type TransitionablePhase,
   isTransitionablePhase,
-} from './reducer'
+} from './phase'
 
 type TransitionId = symbol
 type PartsReadiness = Map<symbol, ReadinessStatus>

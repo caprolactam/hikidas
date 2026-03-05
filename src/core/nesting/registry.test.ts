@@ -1,6 +1,6 @@
 import { describe, expect, test, vi, beforeEach, assert } from 'vitest'
 import { DrawerMachine } from '../drawer/machine'
-import { Phase } from '../drawer/reducer'
+import { Phase } from '../drawer/phase'
 import { DrawerRegistry, NestingPhase } from './registry'
 
 /**

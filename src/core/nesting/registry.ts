@@ -1,5 +1,5 @@
 import type { DrawerMachine } from '../drawer/machine'
-import { Phase, isOpenPhase } from '../drawer/reducer'
+import { Phase, isOpenPhase } from '../drawer/phase'
 import { NestingMachine, type NestingTransitionHandle } from './machine'
 import { type NestingState, NestingPhase, getNestingDepth } from './reducer'
 
