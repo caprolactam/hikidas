@@ -31,10 +31,5 @@ export {
   NestingPhase,
   getNestingDepth,
 } from './nesting/registry'
-export type {
-  DrawerId,
-  NestingState,
-  ActiveNestingTransitionResult,
-  InactiveNestingTransitionResult,
-} from './nesting/registry'
+export type { DrawerId, NestingState } from './nesting/registry'
 export { scaleForDepth } from './nesting/scale'

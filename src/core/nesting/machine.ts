@@ -11,7 +11,7 @@ import {
   NESTING_RESTORE_FROM_DRAG,
 } from './reducer'
 
-/** Handle returned by `registerTransition` for animation completion reporting. */
+/** @internal */
 export interface NestingTransitionHandle {
   /** Call when the scale animation has finished. */
   reportComplete: () => void

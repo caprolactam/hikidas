@@ -5,19 +5,20 @@ import { type NestingState, NestingPhase, getNestingDepth } from './reducer'
 
 export { NestingPhase, type NestingState, getNestingDepth }
 
-export interface ActiveNestingTransitionResult {
+interface ActiveNestingTransitionResult {
   isTransitionable: true
   reportComplete: () => void
   reportCancel: () => void
 }
 
-export interface InactiveNestingTransitionResult {
+interface InactiveNestingTransitionResult {
   isTransitionable: false
 }
 
+/** @internal */
 export type DrawerId = string
 
-export interface DrawerRegistration {
+interface DrawerRegistration {
   id: DrawerId
   parentId: DrawerId | null
   machine: DrawerMachine
@@ -31,7 +32,7 @@ interface DrawerNodeEntry {
   readonly unsubscribePhase: () => void
 }
 
-export interface DrawerNodeView {
+interface DrawerNodeView {
   readonly id: DrawerId
   readonly parentId: DrawerId | null
   readonly depth: number

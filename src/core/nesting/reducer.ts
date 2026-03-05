@@ -97,22 +97,28 @@ export function nestingReducer(
       const { targetDepth } = event
 
       if (state.phase === NestingPhase.Scaling) {
-        // in-flight-animation: no-op if same target, otherwise redirect.
-        if (state.targetDepth === targetDepth) return state
-        return {
-          phase: NestingPhase.Scaling,
-          nestingDepth: state.nestingDepth,
-          targetDepth,
+        // in-flight-scalling: no-op if same target, otherwise redirect.
+        if (state.targetDepth === targetDepth) {
+          return state
+        } else {
+          return {
+            phase: NestingPhase.Scaling,
+            nestingDepth: state.nestingDepth,
+            targetDepth,
+          }
         }
       }
 
-      // Stable state: no-op if already at target, otherwise start animation.
+      // Stable state(in other words, don't have targetDepth) no-op if already at target, otherwise start animation.
       const currentDepth = getNestingDepth(state)
-      if (currentDepth === targetDepth) return state
-      return {
-        phase: NestingPhase.Scaling,
-        nestingDepth: currentDepth,
-        targetDepth,
+      if (currentDepth === targetDepth) {
+        return state
+      } else {
+        return {
+          phase: NestingPhase.Scaling,
+          nestingDepth: currentDepth,
+          targetDepth,
+        }
       }
     }
 
