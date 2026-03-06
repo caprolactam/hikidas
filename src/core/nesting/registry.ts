@@ -52,7 +52,7 @@ export class DrawerRegistry {
 
     if (__DEV__) {
       if (this.#entries.has(id)) {
-        throw new Error(
+        console.warn(
           `[DrawerRegistry] Drawer "${id}" is already registered. Duplicate registration is not allowed.`,
         )
       }
@@ -146,17 +146,6 @@ export class DrawerRegistry {
     if (!entry) return false
 
     return entry.id === id
-  }
-
-  /**
-   * @deprecated
-   * replace with getNode(id)?.nesting
-   */
-  getNestingState(id: DrawerId): NestingState | null {
-    const entry = this.#entries.get(id)
-    if (!entry) return null
-
-    return entry.nestingMachine.snapshot
   }
 
   registerNestingTransition(
