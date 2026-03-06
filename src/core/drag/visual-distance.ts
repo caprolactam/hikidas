@@ -1,5 +1,4 @@
 import type { Direction } from '../drawer/direction'
-import { getViewportSize } from './get-viewport-size'
 
 /**
  * @internal
@@ -83,9 +82,6 @@ function applyRubberBandEffect(value: number): number {
   return Math.max(RUBBER_BAND_COEFFICIENT * (Math.log(value + 1) - 2), 0)
 }
 
-/**
- * Gets maximum offset in opening direction without drawer leaving viewport
- */
 function getMaxOpeningOffsetWithinViewport(
   rect: DOMRect,
   direction: Direction,
@@ -104,9 +100,6 @@ function getMaxOpeningOffsetWithinViewport(
   }
 }
 
-/**
- * Gets maximum offset in dismiss direction until drawer is fully hidden
- */
 function getMaxDismissOffsetUntilFullyHidden(
   rect: DOMRect,
   direction: Direction,
@@ -139,4 +132,20 @@ function getMaxDismissOffsetUntilFullyHidden(
   }
 
   return Math.max(0, Math.min(size, distanceUntilFullyHidden))
+}
+
+interface ViewportSize {
+  width: number
+  height: number
+}
+
+/** @internal */
+export function getViewportSize(): ViewportSize {
+  if (typeof window === 'undefined') return { width: 0, height: 0 }
+
+  const viewport = window.visualViewport
+  return {
+    width: viewport?.width ?? window.innerWidth,
+    height: viewport?.height ?? window.innerHeight,
+  }
 }

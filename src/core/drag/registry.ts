@@ -1,15 +1,7 @@
-import type { DrawerMachine } from '../drawer/machine'
 import { getNestingDepth } from '../nesting/reducer'
 import type { DrawerRegistry, DrawerId } from '../nesting/registry'
 import { scaleForDepth } from '../nesting/scale'
-import { createDragController } from './controller'
-
-// ── Types ────────────────────────────────────────────────────
-
-export interface DraggableInstance {
-  node: HTMLElement
-  overlayNode: HTMLElement | null
-}
+import type { DragController } from './controller'
 
 interface AncestorEntry {
   id: DrawerId
@@ -18,79 +10,58 @@ interface AncestorEntry {
   baseDepth: number
 }
 
-// ── DragRegistry ─────────────────────────────────────────────
-
-/**
- * Nesting-aware drag coordinator.
- *
- * Wraps per-element {@link createDragController} instances with nesting hooks
- * for ancestor scale interpolation and frontmost-drawer gating.
- * Only needed when nesting drawers are used — standalone drawers use
- * {@link createDragController} directly.
- *
- * @internal
- */
+/** @internal */
 export class DragRegistry {
-  #instances = new Map<DrawerId, DraggableInstance>()
+  #controllers = new Map<DrawerId, DragController>()
   #registry: DrawerRegistry
 
   constructor(registry: DrawerRegistry) {
     this.#registry = registry
   }
 
-  // ── Instance management ────────────────────────────────────
-
-  /**
-   * Register a drawer's DOM elements for coordinated drag tracking.
-   * Creates a per-element DragController with nesting hooks.
-   * Returns an unregister function for cleanup.
-   */
-  register(
-    id: DrawerId,
-    instance: DraggableInstance,
-    machine: DrawerMachine,
-  ): () => void {
-    this.#instances.set(id, instance)
+  register(id: DrawerId, controller: DragController): () => void {
+    this.#controllers.set(id, controller)
 
     let ancestorCache: AncestorEntry[] | null = null
 
-    const cleanupController = createDragController({
-      element: instance.node,
-      overlayElement: instance.overlayNode,
-      machine,
-      hooks: {
-        canStart: () => this.#registry.isFrontmost(id),
-        onDragStart: () => {
-          ancestorCache = this.#resolveAncestors(id)
-        },
-        onDragProgress: (rawDismissProgress) => {
-          this.#updateAncestorScales(ancestorCache, rawDismissProgress)
-        },
-        onDragSessionEnd: () => {
-          ancestorCache = null
-        },
+    controller.setHooks({
+      canStart: () => this.#registry.isFrontmost(id),
+      onDragStart: () => {
+        ancestorCache = this.#resolveAncestors(id)
+      },
+      onDragMove: ({ dismissProgress }) => {
+        this.#updateAncestorScales(ancestorCache, dismissProgress)
+      },
+      onDragSessionEnd: () => {
+        ancestorCache = null
       },
     })
 
     return () => {
-      cleanupController()
-      this.#instances.delete(id)
+      controller.dispose()
+      this.#controllers.delete(id)
     }
   }
 
-  // ── Ancestor scale control ─────────────────────────────────
+  dispose(): void {
+    for (const controller of this.#controllers.values()) {
+      controller.dispose()
+    }
+
+    this.#controllers.clear()
+  }
 
   #resolveAncestors(drawerId: DrawerId): AncestorEntry[] {
     const ancestors = this.#registry.getAncestors(drawerId)
     const resolved: AncestorEntry[] = []
 
     for (const ancestor of ancestors) {
-      const instance = this.#instances.get(ancestor.id)
-      if (!instance) continue
+      const controller = this.#controllers.get(ancestor.id)
+      if (!controller) continue
 
       resolved.push({
         id: ancestor.id,
-        element: instance.node,
+        element: controller.element,
         baseDepth: getNestingDepth(ancestor.nesting),
       })
     }
@@ -98,12 +69,6 @@ export class DragRegistry {
     return resolved
   }
 
-  /**
-   * Interpolate ancestor scales between their current nesting scale
-   * and one level up (as if the child were dismissed).
-   *
-   * Direct style writes for 60fps performance — no animation framework.
-   */
   #updateAncestorScales(
     cache: AncestorEntry[] | null,
     dragProgress: number,
@@ -116,11 +81,5 @@ export class DragRegistry {
       const scale = fromScale + (toScale - fromScale) * dragProgress
       element.style.scale = String(scale)
     }
-  }
-
-  // ── Cleanup ────────────────────────────────────────────────
-
-  dispose(): void {
-    this.#instances.clear()
   }
 }

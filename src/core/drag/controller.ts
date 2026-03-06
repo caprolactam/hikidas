@@ -5,19 +5,17 @@ import {
   getMaxSnapRatio,
   getMinSnapRatio,
 } from '../drawer/snap-mode'
-import { getViewportSize } from './get-viewport-size'
-import { initCacheStyling } from './style-cache'
 import { initVelocityTracker, type VelocityTracker } from './velocity-tracker'
-import { resolveDragVisualDistance } from './visual-distance'
+import { getViewportSize, resolveDragVisualDistance } from './visual-distance'
 
-// ── Constants ─────────────────────────────────────────────────
+type CSSProperties = Record<string, string>
 
-const CONTENT_STYLES_IN_DRAGGING: Record<string, string> = {
+const CONTENT_STYLES_IN_DRAGGING: CSSProperties = {
   transition: 'none',
   userSelect: 'none',
 }
 
-const OVERLAY_STYLES_IN_DRAGGING: Record<string, string> = {
+const OVERLAY_STYLES_IN_DRAGGING: CSSProperties = {
   transition: 'none',
 }
 
@@ -29,190 +27,190 @@ const DRAG_START_MIN_DISTANCE_PX: Record<string, number> = {
 
 const DEFAULT_DRAG_START_MIN_DISTANCE_PX = 10
 
-// ── Types ────────────────────────────────────────────────────
-
 /**
- * Hooks for extending drag behavior (e.g., nesting coordination).
+ * @internal
+ * Hooks for extending drag behavior (e.g. nesting coordination).
  * All hooks are optional — without them, the controller operates standalone.
  */
 export interface DragHooks {
   /** Called before accepting a pointerdown. Return false to reject the gesture. */
   canStart?: () => boolean
-  /** Called at Tracking → Dragging transition with the initial pointer position (set at pointerdown, never reset). */
+  /** Called at Tracking → Dragging transition with the initial pointer position. */
   onDragStart?: (initialPointerPos: { x: number; y: number }) => void
-  /** Called on each pointer move during Dragging phase with raw dismiss progress [0, 1]. */
-  onDragProgress?: (rawDismissProgress: number) => void
+  /**
+   * Called on each pointer move during Dragging phase.
+   * `dismissProgress` is `totalVisualDist / drawerSize`: 0 at snap point, 1 when fully dismissed.
+   * Negative values occur when dragging in the opening direction beyond the snap point.
+   */
+  onDragMove?: (props: { dismissProgress: number }) => void
   /** Called when the drag session ends (normal end, cancel, or pointer cancel). */
   onDragSessionEnd?: () => void
 }
 
 /** @internal */
-export interface DragControllerOptions {
-  element: HTMLElement
-  overlayElement: HTMLElement | null
-  machine: DrawerMachine
-  hooks?: DragHooks
-}
+export class DragController {
+  readonly #element: HTMLElement
+  readonly #overlayElement: HTMLElement | null
+  readonly #machine: DrawerMachine
+  #hooks: DragHooks | undefined
 
-// ── Controller ───────────────────────────────────────────────
+  #pointerCapture: PointerCapture | null = null
+  #pointerCoords: PointerCoords | null = null
+  #velocityTracker: VelocityTracker | null = null
+  #cachedDrawerRect: DOMRect | null = null
+  #dragVisualDist: number | null = null
+  readonly #styleCache = createStyleCache()
+  readonly #abortController = new AbortController()
 
-/**
- * Sets up per-element drag handling for a single drawer.
- * Listens for pointer events on the element, manages the drag lifecycle
- * (Tracking → Dragging → Settling), and applies visual transforms.
- *
- * Returns a cleanup function that removes all listeners and resets state.
- *
- * @internal
- */
-export function createDragController(
-  options: DragControllerOptions,
-): () => void {
-  const { element, overlayElement, machine, hooks } = options
+  constructor({
+    element,
+    overlayElement,
+    machine,
+  }: {
+    element: HTMLElement
+    overlayElement: HTMLElement | null
+    machine: DrawerMachine
+  }) {
+    this.#element = element
+    this.#overlayElement = overlayElement
+    this.#machine = machine
 
-  // ── Drag session state ──────────────────────────────────────
-
-  let activePointerId: number | null = null
-  /** Pointer position at pointerdown — used for raw dismiss progress (never reset). */
-  let initialPointerPos: { x: number; y: number } | null = null
-  let pointerCapture: PointerCapture | null = null
-  /** Pointer coords reset at Tracking→Dragging transition to avoid visual jump. */
-  let dragStartCoords: PointerCoords | null = null
-  let velocityTracker: VelocityTracker | null = null
-  let cachedDrawerRect: DOMRect | null = null
-  let dragVisualDist: number | null = null
-  const styleCache = initCacheStyling()
-
-  // ── Session cleanup ─────────────────────────────────────────
-
-  function endDragSession(): void {
-    pointerCapture?.release()
-    pointerCapture = null
-    dragStartCoords = null
-    velocityTracker?.cancel()
-    velocityTracker = null
-    cachedDrawerRect = null
-    dragVisualDist = null
-    activePointerId = null
-    initialPointerPos = null
-    hooks?.onDragSessionEnd?.()
+    const { signal } = this.#abortController
+    this.#element.addEventListener('pointerdown', this.#handlePointerDown, {
+      signal,
+    })
+    this.#element.addEventListener('pointermove', this.#handlePointerMove, {
+      signal,
+    })
+    this.#element.addEventListener('pointerup', this.#handlePointerUp, {
+      signal,
+    })
+    this.#element.addEventListener('pointercancel', this.#handlePointerCancel, {
+      signal,
+    })
+    this.#element.addEventListener('contextmenu', this.#handleContextMenu, {
+      signal,
+    })
   }
 
-  // ── Gesture cancellation ────────────────────────────────────
-
-  function cancelGesture(): void {
-    if (activePointerId === null) return
-
-    const { phase } = machine.snapshot
-    if (!(phase === Phase.Tracking || phase === Phase.Dragging)) {
-      endDragSession()
-      return
-    }
-
-    switch (phase) {
-      case Phase.Tracking:
-        machine.cancelTracking()
-        break
-      case Phase.Dragging:
-        styleCache.reset(element)
-        if (overlayElement) {
-          styleCache.reset(overlayElement)
-        }
-        machine.cancelDrag()
-        break
-      default:
-        phase satisfies never
-    }
-
-    endDragSession()
+  get element(): HTMLElement {
+    return this.#element
   }
 
-  // ── Pointer event handlers ──────────────────────────────────
+  setHooks(hooks: DragHooks): void {
+    this.#hooks = hooks
+  }
 
-  const handlePointerDown = (e: PointerEvent): void => {
-    if (e.button !== 0 || !e.isPrimary) return
+  dispose(): void {
+    if (this.#pointerCapture) {
+      this.#pointerCapture.release()
+    }
+    this.#abortController.abort()
+  }
 
-    if (hooks?.canStart && !hooks.canStart()) return
+  #endDragSession(): void {
+    if (this.#pointerCapture) {
+      this.#pointerCapture.release()
+      this.#pointerCapture = null
+    }
+    this.#pointerCoords = null
+    if (this.#velocityTracker) {
+      this.#velocityTracker.cancel()
+      this.#velocityTracker = null
+    }
+    this.#cachedDrawerRect = null
+    this.#dragVisualDist = null
+    if (this.#hooks?.onDragSessionEnd) {
+      this.#hooks.onDragSessionEnd()
+    }
+  }
 
+  #handlePointerDown = (e: PointerEvent): void => {
     const targetNode = e.target
     if (!(targetNode instanceof HTMLElement)) return
 
-    if (!isDragInteractionAllowed({ rootNode: element, targetNode })) {
+    if (
+      !isDragInteractionAllowed({
+        event: e,
+        rootNode: this.#element,
+        targetNode,
+      })
+    ) {
       return
     }
 
-    const acceptedTransition = machine.startTracking()
+    if (this.#hooks?.canStart && !this.#hooks.canStart()) return
+
+    const acceptedTransition = this.#machine.startTracking()
     if (!acceptedTransition) return
 
-    activePointerId = e.pointerId
-    initialPointerPos = { x: e.clientX, y: e.clientY }
-    pointerCapture = createPointerCapture({
+    this.#pointerCapture = createPointerCapture({
       target: targetNode,
       pointerId: e.pointerId,
     })
-    dragStartCoords = initPointerCoords(e)
+    this.#pointerCoords = createPointerCoords(e)
   }
 
-  const handlePointerMove = (e: PointerEvent): void => {
-    if (activePointerId !== e.pointerId) return
-    if (!initialPointerPos) return
-
-    if (!pointerCapture?.isSamePointer(e.pointerId)) return
-    if (!dragStartCoords) return
-
-    const {
-      phase,
-      snapMode,
-      config: { direction, disableDragDismiss },
-    } = machine.snapshot
-
+  #handlePointerMove = (e: PointerEvent): void => {
+    if (!this.#pointerCapture) return
+    if (!this.#pointerCapture.isSamePointer(e.pointerId)) return
+    if (!this.#pointerCoords) return
+    const phase = this.#machine.snapshot.phase
     if (!(phase === Phase.Tracking || phase === Phase.Dragging)) return
 
+    const {
+      snapMode,
+      config: { direction, disableDragDismiss },
+    } = this.#machine.snapshot
     const pointerPos = { x: e.clientX, y: e.clientY }
-    const draggedDistance = dragStartCoords.calcDraggedDistance(pointerPos)
+    const draggedDistance = this.#pointerCoords.calcDraggedDistance(pointerPos)
 
     switch (phase) {
       case Phase.Tracking: {
         const highlightedText = window.getSelection()?.toString()
         // User doesn't want to drag, but wants to select text
-        if (highlightedText && highlightedText.length > 0) {
-          machine.cancelTracking()
-          endDragSession()
+        if (highlightedText) {
+          this.#machine.cancelTracking()
+          this.#endDragSession()
           return
         }
 
-        const isAcceptedTransition = machine.startDrag({
+        const acceptedTransition = this.#machine.startDrag({
           draggedDistance,
           dragStartMinDistancePx:
             DRAG_START_MIN_DISTANCE_PX[e.pointerType] ??
             DEFAULT_DRAG_START_MIN_DISTANCE_PX,
         })
 
-        if (isAcceptedTransition) {
+        if (acceptedTransition) {
           // Reset initial position to current so that drawer avoids visual jump
-          dragStartCoords = initPointerCoords(e)
-          velocityTracker = initVelocityTracker({
+          this.#pointerCoords = createPointerCoords(e)
+          this.#velocityTracker = initVelocityTracker({
             timeStamp: e.timeStamp,
             pointerOffset: 0,
           })
-          cachedDrawerRect = element.getBoundingClientRect()
+          this.#cachedDrawerRect = this.#element.getBoundingClientRect()
 
-          styleCache.set(element, CONTENT_STYLES_IN_DRAGGING)
-          if (overlayElement) {
-            styleCache.set(overlayElement, OVERLAY_STYLES_IN_DRAGGING)
+          this.#styleCache.set(this.#element, CONTENT_STYLES_IN_DRAGGING)
+          if (this.#overlayElement) {
+            this.#styleCache.set(
+              this.#overlayElement,
+              OVERLAY_STYLES_IN_DRAGGING,
+            )
           }
 
-          hooks?.onDragStart?.(initialPointerPos!)
+          if (this.#hooks?.onDragStart) {
+            this.#hooks.onDragStart(pointerPos)
+          }
         }
         break
       }
       case Phase.Dragging: {
-        if (!velocityTracker) return
-        if (!cachedDrawerRect) return
+        if (!this.#velocityTracker) return
+        if (!this.#cachedDrawerRect) return
 
         const currentSnapRatio = getActiveSnapRatio(snapMode)
-        const drawerSize = direction.sizeOnAxis(cachedDrawerRect)
-
+        const drawerSize = direction.sizeOnAxis(this.#cachedDrawerRect)
         const maxSnapRatio = getMaxSnapRatio(snapMode)
         const minSnapRatio = getMinSnapRatio(snapMode)
         const openingRubberBandThreshold =
@@ -221,48 +219,36 @@ export function createDragController(
           ? drawerSize * (currentSnapRatio - minSnapRatio)
           : null
 
-        const dragVisualDistValue = resolveDragVisualDistance({
+        const dragVisualDist = resolveDragVisualDistance({
           dragDelta: draggedDistance,
           direction,
           dismissRubberBandThreshold,
           openingRubberBandThreshold,
-          drawerRect: cachedDrawerRect,
+          drawerRect: this.#cachedDrawerRect,
         })
-        dragVisualDist = dragVisualDistValue
+        this.#dragVisualDist = dragVisualDist
 
-        velocityTracker.record({
+        this.#velocityTracker.record({
           timeStamp: e.timeStamp,
           pointerOffset: direction.projectOnDismissAxis(draggedDistance),
         })
 
         // Base offset from snap point (in dismiss-positive space)
-        const baseOffsetDismissPositive = drawerSize * (1 - currentSnapRatio)
-        const totalVisualDist = baseOffsetDismissPositive + dragVisualDistValue
-
+        const snapPointOffset = drawerSize * (1 - currentSnapRatio)
+        const totalVisualDist = snapPointOffset + dragVisualDist
         const { x, y } = direction.dismissAxisToTranslate(totalVisualDist)
-        element.style.transform = `translateX(${x}px) translateY(${y}px)`
 
-        if (overlayElement) {
-          const currentRatio = 1 - totalVisualDist / drawerSize
-          const opacity = Math.min(1, currentRatio)
-          overlayElement.style.opacity = `${opacity}`
+        this.#element.style.transform = `translateX(${x}px) translateY(${y}px)`
+
+        if (this.#overlayElement) {
+          const openRatio = 1 - totalVisualDist / drawerSize
+          const opacity = Math.min(1, openRatio)
+          this.#overlayElement.style.opacity = `${opacity}`
         }
 
-        // ── Raw dismiss progress for hooks (ancestor scale interpolation) ──
-        if (hooks?.onDragProgress) {
-          const liveDrawerSize = direction.sizeOnAxis(
-            element.getBoundingClientRect(),
-          )
-          const pointerDelta = {
-            x: e.clientX - initialPointerPos!.x,
-            y: e.clientY - initialPointerPos!.y,
-          }
-          const dismissDist = direction.projectOnDismissAxis(pointerDelta)
-          const rawProgress = Math.max(
-            0,
-            Math.min(1, dismissDist / liveDrawerSize),
-          )
-          hooks.onDragProgress(rawProgress)
+        if (this.#hooks?.onDragMove) {
+          const dismissProgress = Math.min(1, totalVisualDist / drawerSize)
+          this.#hooks.onDragMove({ dismissProgress })
         }
 
         break
@@ -272,26 +258,20 @@ export function createDragController(
     }
   }
 
-  const handlePointerUp = (e: PointerEvent): void => {
-    if (activePointerId !== e.pointerId) return
-
-    const {
-      phase,
-      config: { direction },
-    } = machine.snapshot
-
-    if (!(phase === Phase.Tracking || phase === Phase.Dragging)) {
-      endDragSession()
-      return
-    }
+  #handlePointerUp = (e: PointerEvent): void => {
+    if (!this.#pointerCapture) return
+    if (!this.#pointerCapture.isSamePointer(e.pointerId)) return
+    if (!this.#pointerCoords) return
+    const phase = this.#machine.snapshot.phase
+    if (!(phase === Phase.Tracking || phase === Phase.Dragging)) return
 
     switch (phase) {
       case Phase.Tracking:
-        machine.cancelTracking()
+        this.#machine.cancelTracking()
         break
       case Phase.Dragging: {
-        if (!velocityTracker) return
-        if (dragVisualDist === null) return
+        if (!this.#velocityTracker) return
+        if (this.#dragVisualDist === null) return // dragVisualDist sometimes set falsy value like 0, so check null explicitly
 
         // Suppress click event after dragging to prevent accidental clicks
         if (e.target instanceof EventTarget) {
@@ -304,25 +284,24 @@ export function createDragController(
           )
         }
 
-        const velocity = velocityTracker.end(e.timeStamp)
-
-        styleCache.reset(element)
-        if (overlayElement) {
-          styleCache.reset(overlayElement)
+        this.#styleCache.reset(this.#element)
+        if (this.#overlayElement) {
+          this.#styleCache.reset(this.#overlayElement)
         }
 
+        const velocityResult = this.#velocityTracker.end(e.timeStamp)
         // Drawer size is capped at viewport size so dragDistanceRatio stays in a reasonable range
-        const drawerSize = direction.sizeOnAxis(
-          calculateConstrainedDrawerSize(element.getBoundingClientRect()),
+        const drawerSize = this.#machine.snapshot.config.direction.sizeOnAxis(
+          constrainSizeToViewport(this.#element.getBoundingClientRect()),
         )
         const dragDistanceRatio =
-          drawerSize === 0 ? 0 : dragVisualDist / drawerSize
+          drawerSize === 0 ? 0 : this.#dragVisualDist / drawerSize
 
-        machine.endDrag({
-          velocityPxPerSec: velocity?.velocityPxPerSec ?? 0,
+        this.#machine.endDrag({
+          velocityPxPerSec: velocityResult?.velocityPxPerSec ?? 0,
+          isVelocityStale: velocityResult === null,
           dragDistanceRatio,
           drawerSize,
-          isVelocityStale: velocity === null,
         })
         break
       }
@@ -330,58 +309,51 @@ export function createDragController(
         phase satisfies never
     }
 
-    endDragSession()
+    this.#endDragSession()
   }
 
-  const handlePointerCancel = (e: PointerEvent): void => {
-    if (activePointerId !== e.pointerId) return
-    cancelGesture()
+  #handlePointerCancel = (_e: PointerEvent): void => {
+    this.#cancelGesture()
   }
 
-  const handleContextMenu = (): void => {
-    if (activePointerId === null) return
-    cancelGesture()
+  #handleContextMenu = (): void => {
+    this.#cancelGesture()
   }
 
-  // ── Setup listeners ────────────────────────────────────────
+  #cancelGesture(): void {
+    const { phase } = this.#machine.snapshot
+    if (!(phase === Phase.Tracking || phase === Phase.Dragging)) return
 
-  element.addEventListener('pointerdown', handlePointerDown, {
-    passive: true,
-  })
-  element.addEventListener('pointermove', handlePointerMove, {
-    passive: false,
-  })
-  element.addEventListener('pointerup', handlePointerUp, {
-    passive: true,
-  })
-  element.addEventListener('pointercancel', handlePointerCancel, {
-    passive: true,
-  })
-  element.addEventListener('contextmenu', handleContextMenu, {
-    passive: true,
-  })
+    switch (phase) {
+      case Phase.Tracking:
+        this.#machine.cancelTracking()
+        break
+      case Phase.Dragging:
+        this.#styleCache.reset(this.#element)
+        if (this.#overlayElement) {
+          this.#styleCache.reset(this.#overlayElement)
+        }
+        this.#machine.cancelDrag()
+        break
+      default:
+        phase satisfies never
+    }
 
-  // ── Cleanup ────────────────────────────────────────────────
-
-  return () => {
-    element.removeEventListener('pointerdown', handlePointerDown)
-    element.removeEventListener('pointermove', handlePointerMove)
-    element.removeEventListener('pointerup', handlePointerUp)
-    element.removeEventListener('pointercancel', handlePointerCancel)
-    element.removeEventListener('contextmenu', handleContextMenu)
-    endDragSession()
+    this.#endDragSession()
   }
 }
 
-// ── Helper functions ──────────────────────────────────────────
-
 function isDragInteractionAllowed({
+  event,
   rootNode,
   targetNode,
 }: {
+  event: PointerEvent
   rootNode: HTMLElement
   targetNode: HTMLElement
 }): boolean {
+  if (event.button !== 0 || !event.isPrimary) return false
+
   if (!rootNode.contains(targetNode)) return false
 
   if (
@@ -443,9 +415,9 @@ function createPointerCapture(props: {
   }
 }
 
-type PointerCoords = ReturnType<typeof initPointerCoords>
+type PointerCoords = ReturnType<typeof createPointerCoords>
 
-function initPointerCoords(event: { clientX: number; clientY: number }) {
+function createPointerCoords(event: { clientX: number; clientY: number }) {
   const initialCoords = { x: event.clientX, y: event.clientY }
 
   return {
@@ -458,11 +430,69 @@ function initPointerCoords(event: { clientX: number; clientY: number }) {
   }
 }
 
-function calculateConstrainedDrawerSize(rect: DOMRect) {
+function constrainSizeToViewport(rect: DOMRect) {
   const viewport = getViewportSize()
 
   return {
     width: Math.min(rect.width, viewport.width),
     height: Math.min(rect.height, viewport.height),
   }
+}
+
+function createStyleCache() {
+  const cache = new WeakMap<HTMLElement, Map<string, string>>()
+
+  function set(el: HTMLElement, styles: CSSProperties) {
+    let propCache = cache.get(el)
+    if (!propCache) {
+      propCache = new Map<string, string>()
+      cache.set(el, propCache)
+    }
+
+    Object.keys(styles).forEach((key) => {
+      if (propCache.has(key)) return
+
+      if (key.startsWith('--')) {
+        propCache.set(key, el.style.getPropertyValue(key))
+      } else {
+        propCache.set(key, (el.style as any)[key])
+      }
+    })
+
+    setStyles(el, styles)
+  }
+
+  function reset(el: HTMLElement) {
+    const propCache = cache.get(el)
+
+    if (!propCache) return
+
+    setStyles(el, Object.fromEntries(propCache))
+
+    propCache.clear()
+    cache.delete(el)
+  }
+
+  return {
+    set,
+    reset,
+  }
+}
+
+function setStyles(node: HTMLElement, styles: CSSProperties) {
+  Object.entries(styles).forEach(([key, value]) => {
+    if (key.startsWith('--')) {
+      if (value == null || value === '') {
+        node.style.removeProperty(key)
+      } else {
+        node.style.setProperty(key, value)
+      }
+    } else {
+      if (value == null) {
+        ;(node.style as any)[key] = ''
+      } else {
+        ;(node.style as any)[key] = value
+      }
+    }
+  })
 }

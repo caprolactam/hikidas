@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect } from 'react'
-import { DragRegistry, DrawerRegistry } from '../core'
+import { DragController, DragRegistry, DrawerRegistry } from '../core'
 import {
   DrawerRegistryContext,
   DragSetupContext,
@@ -52,11 +52,12 @@ export function NestingDrawerProvider({
 
   const dragSetup: DragSetup = useCallback(
     (params) => {
-      const cleanupDrag = dragRegistry.register(
-        params.id,
-        { node: params.element, overlayNode: params.overlayElement },
-        params.machine,
-      )
+      const controller = new DragController({
+        element: params.element,
+        overlayElement: params.overlayElement,
+        machine: params.machine,
+      })
+      const cleanupDrag = dragRegistry.register(params.id, controller)
       const cleanupNesting = setupNestingAnimation({
         registry: drawerRegistry,
         drawerId: params.id,

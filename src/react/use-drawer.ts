@@ -12,7 +12,7 @@ import {
   DrawerMachine,
   Phase,
   isOpenPhase,
-  createDragController,
+  DragController,
   type DismissalDirection,
 } from '../core'
 import {
@@ -324,11 +324,12 @@ export function useDrawerContent(props: {
     }
 
     // Standalone mode: local DragController (no nesting)
-    return createDragController({
+    const controller = new DragController({
       element: contentRef.current,
       overlayElement: overlayRef.current,
       machine,
     })
+    return () => controller.dispose()
   }, [dragSetup, id, contentRef, overlayRef, machine])
 
   const ref = useMergeRefs([props.ref, contentRef])
