@@ -1,32 +1,100 @@
 import type { Direction } from '../drawer/direction'
+import type { DrawerMachine } from '../drawer/machine'
 import type { TransitionablePhase, TransitionHint } from '../drawer/phase'
 import { Phase, TransitionKind } from '../drawer/phase'
 import type { SnapMode } from '../drawer/snap-mode'
 import { getActiveSnapRatio } from '../drawer/snap-mode'
 import type { AnimatableProperties, SpringAnimateConfig } from './animate'
-import { parseTransform } from './parse-transform'
-
-// ── Types ─────────────────────────────────────────────────────
+import { initAnimate, parseTransform } from './animate'
 
 /** @internal */
-export type GetVariant = (props: {
+export function setupContentAnimation(params: {
+  machine: DrawerMachine
+  element: HTMLElement
+}): () => void {
+  return setupPhaseAnimation({
+    ...params,
+    getVariant: getContentVariant,
+    resolveSpringConfig: resolveDefaultSpringConfig,
+  })
+}
+
+/** @internal */
+export function setupOverlayAnimation(params: {
+  machine: DrawerMachine
+  element: HTMLElement
+}): () => void {
+  return setupPhaseAnimation({
+    ...params,
+    getVariant: getOverlayVariant,
+    resolveSpringConfig: resolveOverlaySpringConfig,
+  })
+}
+
+type GetVariant = (props: {
   phase: TransitionablePhase
   direction: Direction
   prevStyle: CSSStyleDeclaration
   snapMode: SnapMode
 }) => AnimatableProperties
 
-/** @internal */
-export type ResolveSpringConfig = (props: {
+type ResolveSpringConfig = (props: {
   phase: TransitionablePhase
   transitionHint: TransitionHint
   direction: Direction
 }) => SpringAnimateConfig
 
-// ── Content variant ───────────────────────────────────────────
+function setupPhaseAnimation(params: {
+  machine: DrawerMachine
+  element: HTMLElement
+  getVariant: GetVariant
+  resolveSpringConfig: ResolveSpringConfig
+}): () => void {
+  const { machine, element, getVariant, resolveSpringConfig } = params
+  const animate = initAnimate()
 
-/** @internal */
-export function getContentVariant({
+  function run() {
+    const values = machine.registerTransitionPart()
+    if (!values.isTransitionable) return
+
+    const { phase: transitionPhase, reportComplete, reportCancel } = values
+
+    const {
+      config: { direction },
+      transitionHint,
+      snapMode,
+    } = machine.snapshot
+
+    animate
+      .play(
+        element,
+        (prevStyle) =>
+          getVariant({
+            phase: transitionPhase,
+            direction,
+            prevStyle,
+            snapMode,
+          }),
+        resolveSpringConfig({
+          phase: transitionPhase,
+          transitionHint,
+          direction,
+        }),
+      )
+      .then(reportComplete)
+      .catch(reportCancel)
+  }
+
+  run()
+  const unsubscribe = machine.subscribePhaseChange(run)
+
+  return () => {
+    unsubscribe()
+    animate.cleanup()
+  }
+}
+
+function getContentVariant({
   phase,
   direction,
   prevStyle,
@@ -85,10 +153,7 @@ function calculateSnapPointOffset(
   return offscreenTranslate * (1 - ratio)
 }
 
-// ── Overlay variant ───────────────────────────────────────────
-
-/** @internal */
-export function getOverlayVariant({
+function getOverlayVariant({
   phase,
   prevStyle,
   snapMode,
@@ -109,8 +174,6 @@ export function getOverlayVariant({
   }
 }
 
-// ── Spring config resolution ──────────────────────────────────
-
 const SPRING_CONFIGS: Record<
   TransitionablePhase,
   Record<'flick' | 'other', { bounce: number; duration: number }>
@@ -129,6 +192,28 @@ const SPRING_CONFIGS: Record<
   },
 }
 
+function resolveDefaultSpringConfig({
+  phase,
+  transitionHint,
+  direction,
+}: Parameters<ResolveSpringConfig>[0]): SpringAnimateConfig {
+  const variant =
+    transitionHint.kind === TransitionKind.Flick ? 'flick' : 'other'
+  return {
+    ...SPRING_CONFIGS[phase][variant],
+    velocityPxPerSec: resolveVelocity(transitionHint, direction),
+  }
+}
+
+function resolveOverlaySpringConfig(
+  props: Parameters<ResolveSpringConfig>[0],
+): SpringAnimateConfig {
+  return {
+    ...resolveDefaultSpringConfig(props),
+    velocityPxPerSec: null, // pass velocity makes overshoot on opacity animations.
+  }
+}
+
 const MAX_ANIMATION_VELOCITY_PX_PER_SEC = 3000
 
 function resolveVelocity(
@@ -145,28 +230,4 @@ function resolveVelocity(
     Math.max(raw, -MAX_ANIMATION_VELOCITY_PX_PER_SEC),
     MAX_ANIMATION_VELOCITY_PX_PER_SEC,
   )
-}
-
-/** @internal */
-export function resolveDefaultSpringConfig({
-  phase,
-  transitionHint,
-  direction,
-}: Parameters<ResolveSpringConfig>[0]): SpringAnimateConfig {
-  const variant =
-    transitionHint.kind === TransitionKind.Flick ? 'flick' : 'other'
-  return {
-    ...SPRING_CONFIGS[phase][variant],
-    velocityPxPerSec: resolveVelocity(transitionHint, direction),
-  }
-}
-
-/** @internal */
-export function resolveOverlaySpringConfig(
-  props: Parameters<ResolveSpringConfig>[0],
-): SpringAnimateConfig {
-  return {
-    ...resolveDefaultSpringConfig(props),
-    velocityPxPerSec: null, // pass velocity makes overshoot on opacity animations.
-  }
 }
