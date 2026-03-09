@@ -28,11 +28,10 @@ const DRAG_START_MIN_DISTANCE_PX: Record<string, number> = {
 const DEFAULT_DRAG_START_MIN_DISTANCE_PX = 10
 
 /**
- * @internal
  * Hooks for extending drag behavior (e.g. nesting coordination).
  * All hooks are optional — without them, the controller operates standalone.
  */
-export interface DragHooks {
+interface DragHooks {
   /** Called before accepting a pointerdown. Return false to reject the gesture. */
   canStart?: () => boolean
   /** Called at Tracking → Dragging transition with the initial pointer position. */

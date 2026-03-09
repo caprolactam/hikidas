@@ -18,13 +18,10 @@ export {
   parseScale,
 } from './animation/nesting-animation'
 export { DragController } from './drag/controller'
-export type { DragHooks, DragControllerOptions } from './drag/controller'
 export { DragRegistry } from './drag/registry'
 export type { Direction, DismissalDirection } from './drawer/direction'
 export { DrawerMachine } from './drawer/machine'
 export { Phase, TransitionKind, isOpenPhase } from './drawer/phase'
-export type { TransitionHint, TransitionablePhase } from './drawer/phase'
-export { getActiveSnapRatio } from './drawer/snap-mode'
 export type { SnapMode } from './drawer/snap-mode'
 export {
   DrawerRegistry,
