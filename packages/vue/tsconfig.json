@@ -4,7 +4,6 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "lib": ["esnext", "dom", "dom.iterable"],
-    "jsx": "react-jsx",
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
@@ -16,11 +15,9 @@
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
     "paths": {
-      "@hikidas/core": ["./packages/core/src/index.ts"],
-      "@hikidas/react/*": ["./packages/react/src/adapters/*"],
-      "@hikidas/vue/*": ["./packages/vue/src/adapters/*"]
+      "@hikidas/core": ["../core/src/index.ts"]
     }
   },
-  "include": ["packages/core/src", "packages/react/src", "packages/vue/src", "stories"],
+  "include": ["src"],
   "exclude": ["node_modules", "dist"]
 }
