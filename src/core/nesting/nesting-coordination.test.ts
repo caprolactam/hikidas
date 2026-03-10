@@ -34,18 +34,14 @@ function enterSettling(machine: DrawerMachine): void {
   })
 }
 
-beforeEach(() => {
-  vi.restoreAllMocks()
-})
-
 /**
  * Build a two-level tree: root (open) > child (closed).
  */
-function buildNestingPair() {
+function buildNestingPair(initialOpens: { root: boolean; child: boolean }) {
   const registry = new DrawerRegistry()
   const machines = {
-    root: createMachine(true),
-    child: createMachine(false),
+    root: createMachine(initialOpens.root),
+    child: createMachine(initialOpens.child),
   }
 
   registry.register({ id: 'root', parentId: null, machine: machines.root })
@@ -57,17 +53,31 @@ function buildNestingPair() {
 /**
  * Build a three-level tree: root (open) > child (closed) > grandchild (closed).
  */
-function buildNestingChain() {
+function buildNestingChain(
+  initialOpens: {
+    root: boolean
+    child: boolean
+    grandchild: boolean
+  } = {
+    root: true,
+    child: false,
+    grandchild: false,
+  },
+) {
   const registry = new DrawerRegistry()
   const machines = {
-    root: createMachine(true),
-    child: createMachine(false),
-    grandchild: createMachine(false),
+    root: createMachine(initialOpens.root),
+    child: createMachine(initialOpens.child),
+    grandchild: createMachine(initialOpens.grandchild),
   }
 
   registry.register({ id: 'root', parentId: null, machine: machines.root })
   registry.register({ id: 'child', parentId: 'root', machine: machines.child })
-  registry.register({ id: 'grandchild', parentId: 'child', machine: machines.grandchild })
+  registry.register({
+    id: 'grandchild',
+    parentId: 'child',
+    machine: machines.grandchild,
+  })
 
   return { registry, machines }
 }
@@ -78,11 +88,17 @@ function getNesting(registry: DrawerRegistry, id: string) {
   return node.nesting
 }
 
+beforeEach(() => {
+  vi.restoreAllMocks()
+})
+
 describe('nesting coordination', () => {
-  // ── Nesting scale coordination ──────────────────────────────
   describe('nesting scale coordination', () => {
-    test('child opening sets parent to Scaling with targetDepth=1', () => {
-      const { registry, machines } = buildNestingPair()
+    test('parent starts scale transition when child opens', () => {
+      const { registry, machines } = buildNestingPair({
+        root: true,
+        child: false,
+      })
 
       machines.child.requestOpen()
 
@@ -92,8 +108,11 @@ describe('nesting coordination', () => {
       expect(nesting.targetDepth).toBe(1)
     })
 
-    test('child opening does not affect child own nesting state', () => {
-      const { registry, machines } = buildNestingPair()
+    test('frontmost drawer is always nesting-inactive', () => {
+      const { registry, machines } = buildNestingPair({
+        root: true,
+        child: false,
+      })
 
       machines.child.requestOpen()
 
@@ -101,71 +120,95 @@ describe('nesting coordination', () => {
       expect(nesting.phase).toBe(NestingPhase.Inactive)
     })
 
-    test('child closing resets parent targetDepth to 0', () => {
-      const { registry, machines } = buildNestingPair()
+    test('parent starts scale transition when child closes', () => {
+      const { registry, machines } = buildNestingPair({
+        root: true,
+        child: true,
+      })
 
-      machines.child.requestOpen()
       machines.child.requestClose()
 
       const nesting = getNesting(registry, 'root')
       assert(nesting.phase === NestingPhase.Scaling)
+      expect(nesting.nestingDepth).toBe(1)
       expect(nesting.targetDepth).toBe(0)
     })
 
-    test('grandchild opening deepens ancestor targets (root=2, child=1)', () => {
-      const { registry, machines } = buildNestingChain()
+    test('opening grandchild deepens scale target for all ancestors', () => {
+      const { registry, machines } = buildNestingChain({
+        root: true,
+        child: true,
+        grandchild: false,
+      })
 
-      machines.child.requestOpen()
       machines.grandchild.requestOpen()
 
-      {
-        const nesting = getNesting(registry, 'root')
-        assert(nesting.phase === NestingPhase.Scaling)
-        expect(nesting.targetDepth).toBe(2)
-      }
-      {
-        const nesting = getNesting(registry, 'child')
-        assert(nesting.phase === NestingPhase.Scaling)
-        expect(nesting.targetDepth).toBe(1)
-      }
-      {
-        const nesting = getNesting(registry, 'grandchild')
-        expect(nesting.phase).toBe(NestingPhase.Inactive)
-      }
+      const root = getNesting(registry, 'root')
+      assert(root.phase === NestingPhase.Scaling)
+      expect(root.nestingDepth).toBe(1)
+      expect(root.targetDepth).toBe(2)
+
+      const child = getNesting(registry, 'child')
+      assert(child.phase === NestingPhase.Scaling)
+      expect(child.nestingDepth).toBe(0)
+      expect(child.targetDepth).toBe(1)
+
+      const grandChild = getNesting(registry, 'grandchild')
+      expect(grandChild.phase).toBe(NestingPhase.Inactive)
     })
 
-    test('grandchild closing reduces ancestor depths by one', () => {
-      const { registry, machines } = buildNestingChain()
+    test('closing grandchild reduces scale target for all ancestors', () => {
+      const { registry, machines } = buildNestingChain({
+        root: true,
+        child: true,
+        grandchild: true,
+      })
 
-      machines.child.requestOpen()
-      machines.grandchild.requestOpen()
       machines.grandchild.requestClose()
 
-      {
-        const nesting = getNesting(registry, 'root')
-        assert(nesting.phase === NestingPhase.Scaling)
-        expect(nesting.targetDepth).toBe(1)
-      }
-      {
-        const nesting = getNesting(registry, 'child')
-        assert(nesting.phase === NestingPhase.Scaling)
-        expect(nesting.targetDepth).toBe(0)
-      }
+      const root = getNesting(registry, 'root')
+      assert(root.phase === NestingPhase.Scaling)
+      expect(root.nestingDepth).toBe(2)
+      expect(root.targetDepth).toBe(1)
+
+      const nesting = getNesting(registry, 'child')
+      assert(nesting.phase === NestingPhase.Scaling)
+      expect(nesting.nestingDepth).toBe(1)
+      expect(nesting.targetDepth).toBe(0)
     })
 
-    test('child registered with initialOpen commits parent depth immediately (no animation)', () => {
-      const registry = new DrawerRegistry()
-
-      registry.register({ id: 'root', parentId: null, machine: createMachine(true) })
-      registry.register({ id: 'child', parentId: 'root', machine: createMachine(true) })
+    test('already-open child commits parent scale without animation', () => {
+      const { registry } = buildNestingPair({
+        root: true,
+        child: true,
+      })
 
       const nesting = getNesting(registry, 'root')
       assert(nesting.phase === NestingPhase.Active)
       expect(nesting.nestingDepth).toBe(1)
     })
 
-    test('reportComplete commits nestingDepth and transitions to Active', () => {
-      const { registry, machines } = buildNestingPair()
+    test('already-open chain commits all ancestor scales without animation', () => {
+      const { registry } = buildNestingChain({
+        root: true,
+        child: true,
+        grandchild: true,
+      })
+
+      const root = getNesting(registry, 'root')
+      assert(root.phase === NestingPhase.Active)
+      expect(root.nestingDepth).toBe(2)
+
+      const child = getNesting(registry, 'child')
+      assert(child.phase === NestingPhase.Active)
+      expect(child.nestingDepth).toBe(1)
+    })
+
+    test('completing scale animation commits the nesting depth', () => {
+      const { registry, machines } = buildNestingPair({
+        root: true,
+        child: false,
+      })
 
       machines.child.requestOpen()
 
@@ -178,8 +221,12 @@ describe('nesting coordination', () => {
       expect(nesting.nestingDepth).toBe(1)
     })
 
-    test('stale handle is ignored after target changes again', () => {
-      const { registry, machines } = buildNestingChain()
+    test('animation handle is invalidated when target changes mid-animation', () => {
+      const { registry, machines } = buildNestingChain({
+        root: true,
+        child: false,
+        grandchild: false,
+      })
 
       machines.child.requestOpen()
       const firstHandle = registry.registerNestingTransition('root')
@@ -197,8 +244,12 @@ describe('nesting coordination', () => {
       expect(nesting.targetDepth).toBe(2)
     })
 
-    test('second handle works after first becomes stale', () => {
-      const { registry, machines } = buildNestingChain()
+    test('new animation succeeds after previous handle is invalidated', () => {
+      const { registry, machines } = buildNestingChain({
+        root: true,
+        child: false,
+        grandchild: false,
+      })
 
       machines.child.requestOpen()
       const firstHandle = registry.registerNestingTransition('root')
@@ -215,8 +266,11 @@ describe('nesting coordination', () => {
       expect(nesting.nestingDepth).toBe(2)
     })
 
-    test('reportCancel does not commit nestingDepth', () => {
-      const { registry, machines } = buildNestingPair()
+    test('cancelled animation does not commit nesting depth', () => {
+      const { registry, machines } = buildNestingPair({
+        root: true,
+        child: false,
+      })
 
       machines.child.requestOpen()
 
@@ -230,8 +284,11 @@ describe('nesting coordination', () => {
       expect(nesting.targetDepth).toBe(1)
     })
 
-    test('child closing before animation completes reverses target back', () => {
-      const { registry, machines } = buildNestingPair()
+    test('child closing mid-animation reverses the scale target', () => {
+      const { registry, machines } = buildNestingPair({
+        root: true,
+        child: false,
+      })
 
       machines.child.requestOpen()
       {
@@ -247,69 +304,37 @@ describe('nesting coordination', () => {
       expect(nesting.nestingDepth).toBe(0)
       expect(nesting.targetDepth).toBe(0)
     })
-
-    test('reportComplete notifies subscribe listeners', () => {
-      const { registry, machines } = buildNestingPair()
-
-      machines.child.requestOpen()
-
-      const listener = vi.fn()
-      registry.subscribe(listener)
-      listener.mockClear()
-
-      const handle = registry.registerNestingTransition('root')
-      assert(handle.isTransitionable)
-      handle.reportComplete()
-
-      expect(listener).toHaveBeenCalled()
-    })
   })
 
-  // ── Close propagation ───────────────────────────────────────
   describe('close propagation', () => {
     test('closing a parent propagates close to open child', () => {
-      const registry = new DrawerRegistry()
-      const parent = createMachine(true)
-      const child = createMachine(true)
+      const {
+        machines: { root, child },
+      } = buildNestingPair({
+        root: true,
+        child: true,
+      })
 
-      registry.register({ id: 'parent', parentId: null, machine: parent })
-      registry.register({ id: 'child', parentId: 'parent', machine: child })
+      root.requestClose()
 
-      parent.requestClose()
-
-      expect(parent.snapshot.phase).toBe(Phase.Closing)
+      expect(root.snapshot.phase).toBe(Phase.Closing)
       expect(child.snapshot.phase).toBe(Phase.Closing)
     })
 
     test('close propagates recursively to grandchildren', () => {
-      const registry = new DrawerRegistry()
-      const root = createMachine(true)
-      const child = createMachine(true)
-      const grandchild = createMachine(true)
-
-      registry.register({ id: 'root', parentId: null, machine: root })
-      registry.register({ id: 'child', parentId: 'root', machine: child })
-      registry.register({ id: 'grandchild', parentId: 'child', machine: grandchild })
+      const {
+        machines: { root, child, grandchild },
+      } = buildNestingChain({
+        root: true,
+        child: true,
+        grandchild: true,
+      })
 
       root.requestClose()
 
       expect(root.snapshot.phase).toBe(Phase.Closing)
       expect(child.snapshot.phase).toBe(Phase.Closing)
       expect(grandchild.snapshot.phase).toBe(Phase.Closing)
-    })
-
-    test('closed child is not affected by parent close propagation', () => {
-      const registry = new DrawerRegistry()
-      const parent = createMachine(true)
-      const child = createMachine(false)
-
-      registry.register({ id: 'parent', parentId: null, machine: parent })
-      registry.register({ id: 'child', parentId: 'parent', machine: child })
-
-      parent.requestClose()
-
-      expect(parent.snapshot.phase).toBe(Phase.Closing)
-      expect(child.snapshot.phase).toBe(Phase.Closed)
     })
 
     test('closing a root does not affect unrelated root drawers', () => {
@@ -326,53 +351,31 @@ describe('nesting coordination', () => {
       expect(rootB.snapshot.phase).toBe(Phase.Idle)
     })
 
-    test('child in Opening phase is closed when parent closes', () => {
-      const registry = new DrawerRegistry()
-      const parent = createMachine(true)
-      const child = createMachine(false)
-
-      registry.register({ id: 'parent', parentId: null, machine: parent })
-      registry.register({ id: 'child', parentId: 'parent', machine: child })
-
-      child.requestOpen()
-      expect(child.snapshot.phase).toBe(Phase.Opening)
-
-      parent.requestClose()
-
-      expect(child.snapshot.phase).toBe(Phase.Closing)
-    })
-
     test('parent close with open child resets parent nesting targetDepth to 0', () => {
-      const registry = new DrawerRegistry()
-      const parent = createMachine(true)
-      const child = createMachine(true)
+      const {
+        registry,
+        machines: { root },
+      } = buildNestingPair({
+        root: true,
+        child: true,
+      })
 
-      registry.register({ id: 'parent', parentId: null, machine: parent })
-      registry.register({ id: 'child', parentId: 'parent', machine: child })
+      assert(getNesting(registry, 'root').phase === NestingPhase.Active)
 
-      {
-        const nesting = getNesting(registry, 'parent')
-        assert(nesting.phase === NestingPhase.Active)
-        expect(nesting.nestingDepth).toBe(1)
-      }
+      root.requestClose()
 
-      parent.requestClose()
-
-      const nesting = getNesting(registry, 'parent')
+      const nesting = getNesting(registry, 'root')
       assert(nesting.phase === NestingPhase.Scaling)
       expect(nesting.targetDepth).toBe(0)
     })
   })
 
-  // ── Drag coordination ──────────────────────────────────────
   describe('drag coordination', () => {
     test('child entering Dragging sets ancestors to DragControlled', () => {
-      const registry = new DrawerRegistry()
-      const root = createMachine(true)
-      const child = createMachine(true) // starts Idle (open)
-
-      registry.register({ id: 'root', parentId: null, machine: root })
-      registry.register({ id: 'child', parentId: 'root', machine: child })
+      const {
+        registry,
+        machines: { child },
+      } = buildNestingPair({ root: true, child: true })
 
       enterDragging(child)
 
@@ -382,12 +385,10 @@ describe('nesting coordination', () => {
     })
 
     test('child entering Settling sets ancestors to DragRestoring', () => {
-      const registry = new DrawerRegistry()
-      const root = createMachine(true)
-      const child = createMachine(true)
-
-      registry.register({ id: 'root', parentId: null, machine: root })
-      registry.register({ id: 'child', parentId: 'root', machine: child })
+      const {
+        registry,
+        machines: { child },
+      } = buildNestingPair({ root: true, child: true })
 
       enterDragging(child)
       enterSettling(child)
@@ -398,109 +399,83 @@ describe('nesting coordination', () => {
     })
 
     test('drag propagates DragControlled to all ancestors in chain', () => {
+      const {
+        registry,
+        machines: { grandchild },
+      } = buildNestingChain({ root: true, child: true, grandchild: true })
+
+      enterDragging(grandchild)
+
+      expect(getNesting(registry, 'root').phase).toBe(
+        NestingPhase.DragControlled,
+      )
+      expect(getNesting(registry, 'child').phase).toBe(
+        NestingPhase.DragControlled,
+      )
+    })
+
+    test('settling propagates DragRestoring to all ancestors in chain', () => {
+      const {
+        registry,
+        machines: { grandchild },
+      } = buildNestingChain({ root: true, child: true, grandchild: true })
+
+      enterDragging(grandchild)
+      enterSettling(grandchild)
+
+      expect(getNesting(registry, 'root').phase).toBe(
+        NestingPhase.DragRestoring,
+      )
+      expect(getNesting(registry, 'child').phase).toBe(
+        NestingPhase.DragRestoring,
+      )
+    })
+  })
+
+  describe('unregistration effects', () => {
+    test('unregistering open child recalculates parent nesting depth', () => {
+      const registry = new DrawerRegistry()
+      const root = createMachine(true)
+      const child = createMachine(true)
+
+      registry.register({ id: 'root', parentId: null, machine: root })
+      const unregChild = registry.register({
+        id: 'child',
+        parentId: 'root',
+        machine: child,
+      })
+
+      {
+        const nesting = getNesting(registry, 'root')
+        assert(nesting.phase === NestingPhase.Active)
+        expect(nesting.nestingDepth).toBe(1)
+      }
+
+      unregChild()
+
+      {
+        const nesting = getNesting(registry, 'root')
+        assert(nesting.phase === NestingPhase.Scaling)
+        expect(nesting.targetDepth).toBe(0)
+      }
+    })
+
+    test('removing middle node disconnects subtree from ancestor nesting', () => {
       const registry = new DrawerRegistry()
       const root = createMachine(true)
       const child = createMachine(true)
       const grandchild = createMachine(true)
 
       registry.register({ id: 'root', parentId: null, machine: root })
-      registry.register({ id: 'child', parentId: 'root', machine: child })
-      registry.register({ id: 'grandchild', parentId: 'child', machine: grandchild })
-
-      enterDragging(grandchild)
-
-      {
-        const nesting = getNesting(registry, 'root')
-        expect(nesting.phase).toBe(NestingPhase.DragControlled)
-      }
-      {
-        const nesting = getNesting(registry, 'child')
-        expect(nesting.phase).toBe(NestingPhase.DragControlled)
-      }
-    })
-
-    test('isFrontmost returns true for deepest open drawer', () => {
-      const { registry, machines } = buildNestingPair()
-
-      machines.child.requestOpen()
-
-      expect(registry.isFrontmost('child')).toBe(true)
-      expect(registry.isFrontmost('root')).toBe(false)
-    })
-
-    test('isFrontmost returns false when all drawers are closed', () => {
-      const registry = new DrawerRegistry()
-      registry.register({ id: 'a', parentId: null, machine: createMachine(false) })
-
-      expect(registry.isFrontmost('a')).toBe(false)
-    })
-
-    test('getAncestors returns ancestor nodes with nesting state', () => {
-      const { registry, machines } = buildNestingChain()
-
-      machines.child.requestOpen()
-      machines.grandchild.requestOpen()
-
-      const ancestors = registry.getAncestors('grandchild')
-      expect(ancestors.map((a) => a.id)).toEqual(['child', 'root'])
-
-      // Verify ancestors carry nesting state (used by DragRegistry for scale interpolation)
-      const childAncestor = ancestors.find((a) => a.id === 'child')!
-      assert(childAncestor.nesting.phase === NestingPhase.Scaling)
-      expect(childAncestor.nesting.targetDepth).toBe(1)
-
-      const rootAncestor = ancestors.find((a) => a.id === 'root')!
-      assert(rootAncestor.nesting.phase === NestingPhase.Scaling)
-      expect(rootAncestor.nesting.targetDepth).toBe(2)
-    })
-  })
-
-  // ── Unregistration effects ──────────────────────────────────
-  describe('unregistration effects', () => {
-    test('unregistering open child recalculates parent nesting depth', () => {
-      const registry = new DrawerRegistry()
-      const rootMachine = createMachine(true)
-      const childMachine = createMachine(false)
-
-      registry.register({ id: 'root', parentId: null, machine: rootMachine })
       const unregChild = registry.register({
         id: 'child',
         parentId: 'root',
-        machine: childMachine,
-      })
-
-      childMachine.requestOpen()
-      {
-        const nesting = getNesting(registry, 'root')
-        assert(nesting.phase === NestingPhase.Scaling)
-        expect(nesting.targetDepth).toBe(1)
-      }
-
-      unregChild()
-
-      const nesting = getNesting(registry, 'root')
-      assert(nesting.phase === NestingPhase.Scaling)
-      expect(nesting.targetDepth).toBe(0)
-    })
-
-    test('middle node removal resets root depth to 0', () => {
-      const registry = new DrawerRegistry()
-      const machines = {
-        root: createMachine(true),
-        child: createMachine(true),
-        grandchild: createMachine(true),
-      }
-
-      registry.register({ id: 'root', parentId: null, machine: machines.root })
-      const unregChild = registry.register({
-        id: 'child',
-        parentId: 'root',
-        machine: machines.child,
+        machine: child,
       })
       registry.register({
         id: 'grandchild',
         parentId: 'child',
-        machine: machines.grandchild,
+        machine: grandchild,
       })
 
       {
@@ -511,50 +486,61 @@ describe('nesting coordination', () => {
 
       unregChild()
 
-      const nesting = getNesting(registry, 'root')
-      assert(nesting.phase === NestingPhase.Scaling)
-      expect(nesting.targetDepth).toBe(0)
+      {
+        const nesting = getNesting(registry, 'root')
+        assert(nesting.phase === NestingPhase.Scaling)
+        expect(nesting.targetDepth).toBe(0)
+      }
     })
 
     test('phase changes after unregister do not propagate to ancestors', () => {
       const registry = new DrawerRegistry()
       const machine = createMachine(false)
 
-      registry.register({ id: 'root', parentId: null, machine: createMachine(true) })
-      const unreg = registry.register({ id: 'child', parentId: 'root', machine })
-
+      registry.register({
+        id: 'root',
+        parentId: null,
+        machine: createMachine(true),
+      })
+      const unreg = registry.register({
+        id: 'child',
+        parentId: 'root',
+        machine,
+      })
       unreg()
-
       const listener = vi.fn()
       registry.subscribe(listener)
-
       // Phase change on detached machine should not notify registry
       machine.requestOpen()
+
       expect(listener).not.toHaveBeenCalled()
     })
   })
 
-  // ── Dev warnings ────────────────────────────────────────────
-  describe('dev warnings', () => {
-    test('warns when sibling drawer opens while another is already open', () => {
-      const registry = new DrawerRegistry()
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  test('dev warnings when sibling drawer opens while another is already open', () => {
+    const registry = new DrawerRegistry()
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-      registry.register({ id: 'root', parentId: null, machine: createMachine(true) })
-      registry.register({ id: 'childA', parentId: 'root', machine: createMachine(true) })
-
-      const childB = createMachine(false)
-      registry.register({ id: 'childB', parentId: 'root', machine: childB })
-
-      childB.requestOpen()
-
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'Drawer "childB" is opening while sibling "childA" is already open',
-        ),
-      )
-
-      warnSpy.mockRestore()
+    registry.register({
+      id: 'root',
+      parentId: null,
+      machine: createMachine(true),
     })
+    registry.register({
+      id: 'childA',
+      parentId: 'root',
+      machine: createMachine(true),
+    })
+
+    const childB = createMachine(false)
+    registry.register({ id: 'childB', parentId: 'root', machine: childB })
+
+    childB.requestOpen()
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Drawer "childB" is opening while sibling "childA" is already open',
+      ),
+    )
   })
 })

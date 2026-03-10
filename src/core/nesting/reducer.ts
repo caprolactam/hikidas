@@ -178,7 +178,6 @@ function terminalState(depth: number): NestingState {
  * @internal
  *
  * Extract the committed nesting depth from any NestingState.
- * Returns 0 for Inactive.
  */
 export function getNestingDepth(state: NestingState): number {
   return state.phase === NestingPhase.Inactive ? 0 : state.nestingDepth

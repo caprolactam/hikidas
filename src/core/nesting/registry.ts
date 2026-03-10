@@ -183,14 +183,11 @@ export class DrawerRegistry {
     const phase = entry.machine.snapshot.phase
 
     switch (phase) {
-      // When a drawer starts closing, propagate close to all direct open children.
+      // When a drawer starts closing, propagate close to all direct children.
       // Each child's own #onPhaseChange will recurse to grandchildren automatically.
       case Phase.Closing:
         for (const child of this.#entries.values()) {
-          if (
-            child.parentId === id &&
-            isOpenPhase(child.machine.snapshot.phase)
-          ) {
+          if (child.parentId === id) {
             child.machine.requestClose()
           }
         }
