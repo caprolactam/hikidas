@@ -17,7 +17,7 @@ import {
   setupContentAnimation,
   setupOverlayAnimation,
   type DismissalDirection,
-} from '../core'
+} from '@hikidas/core'
 import {
   type DrawerContextValue,
   useDrawerContext,

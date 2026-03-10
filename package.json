@@ -1,72 +1,27 @@
 {
-  "name": "hikidas",
-  "version": "0.1.0",
-  "description": "Drawer component for React with support for multiple UI libraries.",
-  "keywords": [
-    "accessible",
-    "animation",
-    "base-ui",
-    "dialog",
-    "drawer",
-    "headlessui",
-    "radix-ui",
-    "react"
-  ],
-  "license": "MIT",
-  "author": "caprolactam <caprolactam113@gmail.com>",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/caprolactam/hikidas.git"
-  },
-  "files": [
-    "dist",
-    "README.md"
-  ],
-  "type": "module",
-  "sideEffects": false,
-  "exports": {
-    "./base-ui": {
-      "types": "./dist/types/react/adapters/base-ui/index.d.ts",
-      "development": "./dist/base-ui/index.dev.js",
-      "production": "./dist/base-ui/index.prod.js",
-      "default": "./dist/base-ui/index.prod.js"
-    },
-    "./radix-ui": {
-      "types": "./dist/types/react/adapters/radix-ui/index.d.ts",
-      "development": "./dist/radix-ui/index.dev.js",
-      "production": "./dist/radix-ui/index.prod.js",
-      "default": "./dist/radix-ui/index.prod.js"
-    },
-    "./headlessui": {
-      "types": "./dist/types/react/adapters/headlessui/index.d.ts",
-      "development": "./dist/headlessui/index.dev.js",
-      "production": "./dist/headlessui/index.prod.js",
-      "default": "./dist/headlessui/index.prod.js"
-    }
-  },
+  "private": true,
   "scripts": {
-    "build": "rimraf ./dist && rollup -c && tsc --project tsconfig.declarations.json --emitDeclarationOnly",
-    "typecheck": "tsc --noEmit",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
     "lint": "oxlint",
     "format": "oxfmt --write",
     "storybook": "storybook dev -p 6006",
     "storybook:test": "vitest --project=storybook",
     "storybook:build": "storybook build",
     "storybook:preview": "vite preview --outDir storybook-static",
-    "test": "vitest --project=core",
-    "e2e": "npx playwright test",
-    "prepublishOnly": "pnpm build",
-    "size-check": "node size-check.js",
-    "dep:dot": "madge --ts-config tsconfig.json --extensions ts,tsx --exclude \"^.*\\.test.(ts|tsx)$\"  src --dot > .madge/deps.dot",
-    "dep:svg": "mkdirp .madge &&  npm run dep:dot && dot -Tsvg .madge/deps.dot -o .madge/deps.svg"
+    "e2e": "npx playwright test"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-pure-annotations": "^7.27.1",
     "@base-ui/react": "^1.2.0",
     "@headlessui/react": "^2.2.9",
+    "@hikidas/core": "workspace:*",
+    "@hikidas/react": "workspace:*",
     "@playwright/test": "^1.58.2",
     "@react-spring/web": "^10.0.3",
     "@rollup/plugin-babel": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-replace": "^6.0.3",
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^12.3.0",
@@ -82,7 +37,6 @@
     "@vitest/browser-playwright": "^4.0.18",
     "@vitest/coverage-v8": "^4.0.18",
     "globals": "^17.3.0",
-    "madge": "^8.0.0",
     "mkdirp": "^3.0.1",
     "motion": "^12.34.3",
     "oxfmt": "^0.35.0",
@@ -90,6 +44,7 @@
     "playwright": "^1.58.2",
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "rimraf": "^6.1.3",
     "rollup": "^4.59.0",
     "rollup-plugin-banner2": "^1.3.1",
@@ -99,23 +54,6 @@
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vitest": "^4.0.18"
-  },
-  "peerDependencies": {
-    "@base-ui/react": "^1.2.0",
-    "@headlessui/react": "^2.2.0",
-    "radix-ui": "^1.4.3",
-    "react": "^19.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@base-ui/react": {
-      "optional": true
-    },
-    "@headlessui/react": {
-      "optional": true
-    },
-    "radix-ui": {
-      "optional": true
-    }
   },
   "packageManager": "pnpm@10.30.3"
 }

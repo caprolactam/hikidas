@@ -23,7 +23,7 @@
     "escape-goat": "^4.0.0",
     "expressive-code-collapsible": "^0.1.0",
     "hast-util-to-html": "^9.0.5",
-    "hikidas": "workspace:*",
+    "@hikidas/react": "workspace:*",
     "parse-numeric-range": "^1.3.0",
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",

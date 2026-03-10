@@ -3,7 +3,7 @@ import { useState } from 'react'
 import {
   Drawer,
   NestingDrawerProvider,
-} from '../../src/react/adapters/headlessui'
+} from '../../packages/react/src/adapters/headlessui'
 
 export default {
   title: 'Adapters/Headless UI',

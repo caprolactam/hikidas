@@ -16,10 +16,9 @@
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
     "paths": {
-      "@hikidas/core": ["./packages/core/src/index.ts"],
-      "@hikidas/react/*": ["./packages/react/src/adapters/*"]
+      "@hikidas/core": ["../core/src/index.ts"]
     }
   },
-  "include": ["packages/core/src", "packages/react/src", "stories"],
+  "include": ["src"],
   "exclude": ["node_modules", "dist"]
 }

@@ -15,13 +15,6 @@ export default defineConfig({
     projects: [
       {
         extends: true,
-        test: {
-          name: 'core',
-          include: ['src/core/**/*.test.{ts,tsx}'],
-        },
-      },
-      {
-        extends: true,
         plugins: [
           storybookTest({
             configDir: path.join(dirname, '.storybook'),
@@ -32,7 +25,7 @@ export default defineConfig({
           browser: {
             enabled: true,
             headless: true,
-            provider: playwright({}),
+            provider: playwright(),
             instances: [{ browser: 'chromium' }],
           },
           setupFiles: ['./.storybook/vitest.setup.ts'],

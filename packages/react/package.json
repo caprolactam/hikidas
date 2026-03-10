@@ -1,0 +1,72 @@
+{
+  "name": "@hikidas/react",
+  "version": "0.1.0",
+  "description": "Drawer component for React with support for multiple UI libraries.",
+  "keywords": [
+    "accessible",
+    "animation",
+    "base-ui",
+    "dialog",
+    "drawer",
+    "headlessui",
+    "radix-ui",
+    "react"
+  ],
+  "license": "MIT",
+  "author": "caprolactam <caprolactam113@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/caprolactam/hikidas.git"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./base-ui": {
+      "types": "./dist/types/adapters/base-ui/index.d.ts",
+      "development": "./dist/base-ui/index.dev.js",
+      "production": "./dist/base-ui/index.prod.js",
+      "default": "./dist/base-ui/index.prod.js"
+    },
+    "./radix-ui": {
+      "types": "./dist/types/adapters/radix-ui/index.d.ts",
+      "development": "./dist/radix-ui/index.dev.js",
+      "production": "./dist/radix-ui/index.prod.js",
+      "default": "./dist/radix-ui/index.prod.js"
+    },
+    "./headlessui": {
+      "types": "./dist/types/adapters/headlessui/index.d.ts",
+      "development": "./dist/headlessui/index.dev.js",
+      "production": "./dist/headlessui/index.prod.js",
+      "default": "./dist/headlessui/index.prod.js"
+    }
+  },
+  "scripts": {
+    "build": "rimraf ./dist && rollup -c && tsc --project tsconfig.declarations.json",
+    "typecheck": "tsc --noEmit",
+    "size-check": "node size-check.js"
+  },
+  "devDependencies": {
+    "@hikidas/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@base-ui/react": "^1.2.0",
+    "@headlessui/react": "^2.2.0",
+    "radix-ui": "^1.4.3",
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@base-ui/react": {
+      "optional": true
+    },
+    "@headlessui/react": {
+      "optional": true
+    },
+    "radix-ui": {
+      "optional": true
+    }
+  }
+}

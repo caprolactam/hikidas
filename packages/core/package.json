@@ -1,0 +1,21 @@
+{
+  "name": "@hikidas/core",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "author": "caprolactam <caprolactam113@gmail.com>",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "rimraf ./dist && tsc --project tsconfig.build.json",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "typecheck": "tsc --noEmit"
+  }
+}

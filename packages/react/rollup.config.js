@@ -1,14 +1,12 @@
 import { getBabelOutputPlugin } from '@rollup/plugin-babel'
+import resolve from '@rollup/plugin-node-resolve'
 import replace from '@rollup/plugin-replace'
 import typescript from '@rollup/plugin-typescript'
 import banner from 'rollup-plugin-banner2'
 import pkg from './package.json' with { type: 'json' }
 
 const external = (id) =>
-  [
-    ...Object.keys(pkg.dependencies || {}),
-    ...Object.keys(pkg.peerDependencies || {}),
-  ].some((d) => id.startsWith(d))
+  Object.keys(pkg.peerDependencies || {}).some((d) => id.startsWith(d))
 
 function createAdapterConfig(adapterName, env) {
   const isDevelopment = env === 'development'
@@ -18,7 +16,7 @@ function createAdapterConfig(adapterName, env) {
     : pkg.exports[exportPath].production
 
   return {
-    input: `src/react/adapters/${adapterName}/index.ts`,
+    input: `src/adapters/${adapterName}/index.ts`,
     output: {
       file: outputFile,
       format: 'esm',
@@ -29,6 +27,7 @@ function createAdapterConfig(adapterName, env) {
         __DEV__: JSON.stringify(isDevelopment),
         preventAssignment: true,
       }),
+      resolve(),
       typescript({
         tsconfig: './tsconfig.build.json',
       }),

@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useCallback, useEffect, useMemo } from 'react'
-import { DragRegistry, DrawerRegistry, setupNestingAnimation } from '../core'
+import { DragRegistry, DrawerRegistry, setupNestingAnimation } from '@hikidas/core'
 import {
   NestingContext,
   type NestingContextValue,
@@ -25,7 +25,7 @@ interface NestingDrawerProviderProps {
  *
  * @example
  * ```tsx
- * import { NestingDrawerProvider } from 'hikidas/react'
+ * import { NestingDrawerProvider } from '@hikidas/react'
  *
  * function App() {
  *   return (

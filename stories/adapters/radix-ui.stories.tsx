@@ -3,7 +3,7 @@ import { useState } from 'react'
 import {
   Drawer,
   NestingDrawerProvider,
-} from '../../src/react/adapters/radix-ui'
+} from '../../packages/react/src/adapters/radix-ui'
 
 export default {
   title: 'Adapters/Radix UI',

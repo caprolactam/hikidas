@@ -2,9 +2,9 @@
 
 Headless drawer behavior for React, with adapter packages for different UI libraries.
 
-- `hikidas/radix-ui` for [radix-ui](https://www.npmjs.com/package/radix-ui)
-- `hikidas/base-ui` for [@base-ui/react](https://www.npmjs.com/package/@base-ui/react)
-- `hikidas/headlessui` for [@headlessui/react](https://www.npmjs.com/package/@headlessui/react)
+- `@hikidas/react/radix-ui` for [radix-ui](https://www.npmjs.com/package/radix-ui)
+- `@hikidas/react/base-ui` for [@base-ui/react](https://www.npmjs.com/package/@base-ui/react)
+- `@hikidas/react/headlessui` for [@headlessui/react](https://www.npmjs.com/package/@headlessui/react)
 
 Hikidas adds drag-to-dismiss, directional dismissal, and snap point behavior on top of existing dialog primitives.
 
@@ -19,19 +19,19 @@ Install Hikidas and the adapter's peer dependency:
 
 ```bash
 # Radix UI adapter
-npm install hikidas radix-ui
+npm install @hikidas/react radix-ui
 
 # Base UI adapter
-npm install hikidas @base-ui/react
+npm install @hikidas/react @base-ui/react
 
 # Headless UI adapter
-npm install hikidas @headlessui/react
+npm install @hikidas/react @headlessui/react
 ```
 
 ## Quick Start (Radix UI)
 
 ```tsx
-import { Drawer } from 'hikidas/radix-ui'
+import { Drawer } from '@hikidas/react/radix-ui'
 
 export function Example() {
   return (
@@ -54,7 +54,7 @@ export function Example() {
 ## Quick Start (Base UI)
 
 ```tsx
-import { Drawer } from 'hikidas/base-ui'
+import { Drawer } from '@hikidas/react/base-ui'
 
 export function Example() {
   return (
@@ -80,7 +80,7 @@ export function Example() {
 
 ```tsx
 import { useState } from 'react'
-import { Drawer } from 'hikidas/headlessui'
+import { Drawer } from '@hikidas/react/headlessui'
 
 export function Example() {
   const [open, setOpen] = useState(false)
@@ -138,7 +138,7 @@ The Headless UI adapter follows the Headless UI Dialog convention: always contro
 
 ## Adapter Components
 
-### `hikidas/radix-ui`
+### `@hikidas/react/radix-ui`
 
 - `Drawer.Root`
 - `Drawer.Trigger`
@@ -149,7 +149,7 @@ The Headless UI adapter follows the Headless UI Dialog convention: always contro
 - `Drawer.Title`
 - `Drawer.Description`
 
-### `hikidas/base-ui`
+### `@hikidas/react/base-ui`
 
 - `Drawer.Root`
 - `Drawer.Trigger`
@@ -161,7 +161,7 @@ The Headless UI adapter follows the Headless UI Dialog convention: always contro
 - `Drawer.Title`
 - `Drawer.Description`
 
-### `hikidas/headlessui`
+### `@hikidas/react/headlessui`
 
 - `Drawer.Root` — wraps `Dialog` (always controlled, auto-portaled)
 - `Drawer.Backdrop` — wraps `DialogBackdrop`

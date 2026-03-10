@@ -4,7 +4,7 @@ import type {
   DrawerId,
   DrawerRegistry,
   DragController,
-} from '../core'
+} from '@hikidas/core'
 
 /**
  * Connects a drawer's content element and drag controller into the nesting

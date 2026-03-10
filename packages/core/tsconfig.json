@@ -4,7 +4,6 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "lib": ["esnext", "dom", "dom.iterable"],
-    "jsx": "react-jsx",
     "strict": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
@@ -14,12 +13,7 @@
     "noPropertyAccessFromIndexSignature": true,
     "noFallthroughCasesInSwitch": true,
     "allowUnreachableCode": false,
-    "allowUnusedLabels": false,
-    "paths": {
-      "@hikidas/core": ["./packages/core/src/index.ts"],
-      "@hikidas/react/*": ["./packages/react/src/adapters/*"]
-    }
+    "allowUnusedLabels": false
   },
-  "include": ["packages/core/src", "packages/react/src", "stories"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src"]
 }

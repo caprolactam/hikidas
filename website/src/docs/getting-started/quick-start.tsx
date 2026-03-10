@@ -1,4 +1,4 @@
-import { Drawer } from 'hikidas/radix-ui'
+import { Drawer } from '@hikidas/react/radix-ui'
 import React from 'react'
 import './drawer.css'
 
