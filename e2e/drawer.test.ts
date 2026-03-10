@@ -391,7 +391,9 @@ test.describe('SnapPoints', () => {
 
 test.describe('SnapPointsWithDefaultIndex', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(storyUrl('drawer-snap-points--snap-points-with-default-index'))
+    await page.goto(
+      storyUrl('drawer-snap-points--snap-points-with-default-index'),
+    )
   })
 
   test('opens to the middle (50%) snap point by default', async ({ page }) => {
@@ -455,7 +457,9 @@ test.describe('ControlledSnapPoints', () => {
 
 test.describe('SnapPointsWithDisableDragDismiss', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(storyUrl('drawer-snap-points--snap-points-with-disable-drag-dismiss'))
+    await page.goto(
+      storyUrl('drawer-snap-points--snap-points-with-disable-drag-dismiss'),
+    )
   })
 
   async function openDrawerAtLowestSnap(page: Page) {
