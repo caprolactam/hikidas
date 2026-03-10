@@ -8,23 +8,23 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
+import type React from 'react'
 import {
   DrawerMachine,
   Phase,
   isOpenPhase,
   DragController,
+  setupContentAnimation,
+  setupOverlayAnimation,
   type DismissalDirection,
 } from '../core'
 import {
   type DrawerContextValue,
   useDrawerContext,
   useParentDrawerId,
-  useDrawerRegistryOptional,
-  DragSetupContext,
+  NestingContext,
 } from './context'
-import { useContentAnimation, useOverlayAnimation } from './use-phase-animation'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
-import { useMergeRefs } from './utils/use-merge-refs'
 import { useStatic } from './utils/use-static'
 
 export interface DrawerRootAPI {
@@ -149,8 +149,9 @@ export function useDrawerRoot({
   onSnapPointChange,
 }: DrawerRootAPI) {
   const id = useId()
-  const registry = useDrawerRegistryOptional()
   const parentDrawerId = useParentDrawerId()
+  const nesting = useContext(NestingContext)
+
   const [desiredOpen, setDesiredOpen] = useControllableState({
     value: open,
     defaultValue: !!defaultOpen,
@@ -187,14 +188,14 @@ export function useDrawerRoot({
   )
 
   // Register with DrawerRegistry only when NestingDrawerProvider is present
-  useIsomorphicEffect(() => {
-    if (!registry) return
-    return registry.register({
+  useEffect(() => {
+    if (!nesting) return
+    return nesting.registry.register({
       id,
       parentId: parentDrawerId,
       machine,
     })
-  }, [registry, id, parentDrawerId, machine])
+  }, [id, parentDrawerId, nesting, machine])
 
   useEffect(() => {
     machine.updateConfig({
@@ -262,15 +263,16 @@ export function useDrawerRoot({
 
   const contentRef = useRef<HTMLDivElement | null>(null)
   const overlayRef = useRef<HTMLDivElement | null>(null)
-
+  const nestingConnector = nesting?.connector ?? null
   const contextValue: DrawerContextValue = useMemo(
     () => ({
       id,
       machine,
       contentRef,
       overlayRef,
+      nestingConnector,
     }),
-    [id, machine],
+    [id, machine, nestingConnector],
   )
 
   return {
@@ -283,10 +285,13 @@ export function useDrawerRoot({
 export function useDrawerOverlay(externalRef?: React.Ref<HTMLDivElement>) {
   const { machine, overlayRef } = useDrawerContext()
 
-  useOverlayAnimation({
-    elementRef: overlayRef,
-    machine,
-  })
+  useIsomorphicEffect(
+    function overlayAnimation() {
+      if (!overlayRef.current) return
+      return setupOverlayAnimation({ machine, element: overlayRef.current })
+    },
+    [machine, overlayRef],
+  )
 
   const ref = useMergeRefs([externalRef, overlayRef])
 
@@ -302,35 +307,44 @@ export function useDrawerContent(props: {
   ref: React.Ref<HTMLDivElement>
   style: React.CSSProperties
 } {
-  const { id, machine, contentRef, overlayRef } = useDrawerContext()
-  const dragSetup = useContext(DragSetupContext)
+  const { id, machine, contentRef, overlayRef, nestingConnector } =
+    useDrawerContext()
 
-  useContentAnimation({
-    machine,
-    elementRef: contentRef,
-  })
+  useIsomorphicEffect(
+    function contentAnimation() {
+      if (!contentRef.current) return
+      return setupContentAnimation({ machine, element: contentRef.current })
+    },
+    [machine, contentRef],
+  )
 
-  useIsomorphicEffect(() => {
+  useEffect(() => {
     if (!contentRef.current) return
 
-    if (dragSetup) {
-      // Nesting mode: coordinator handles drag + nesting animation
-      return dragSetup({
-        id,
-        element: contentRef.current,
-        overlayElement: overlayRef.current,
-        machine,
-      })
-    }
+    let cleanups: Array<() => void> = []
 
-    // Standalone mode: local DragController (no nesting)
     const controller = new DragController({
       element: contentRef.current,
       overlayElement: overlayRef.current,
       machine,
     })
-    return () => controller.dispose()
-  }, [dragSetup, id, contentRef, overlayRef, machine])
+    cleanups.push(controller.dispose.bind(controller))
+
+    if (nestingConnector) {
+      const nestingCleanup = nestingConnector({
+        id,
+        element: contentRef.current,
+        controller,
+      })
+      cleanups.push(nestingCleanup)
+    }
+
+    return () => {
+      for (const cleanup of cleanups) {
+        cleanup()
+      }
+    }
+  }, [nestingConnector, id, contentRef, overlayRef, machine])
 
   const ref = useMergeRefs([props.ref, contentRef])
 
@@ -401,4 +415,32 @@ function useLatestRef<T>(value: T) {
   }, [value])
 
   return ref
+}
+
+function useMergeRefs<T>(
+  refs: readonly (React.Ref<T> | undefined)[],
+): React.Ref<T> {
+  return useCallback((instance: T | null) => {
+    let cleanups: Array<(() => void) | void> = []
+
+    for (const ref of refs) {
+      if (ref) {
+        if (typeof ref === 'function') {
+          const cleanup = ref(instance)
+          cleanups.push(cleanup)
+        } else {
+          ref.current = instance
+        }
+      }
+    }
+
+    return () => {
+      for (const cleanup of cleanups) {
+        if (typeof cleanup === 'function') {
+          cleanup()
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, refs)
 }

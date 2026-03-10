@@ -1,12 +1,12 @@
-import React, { useCallback, useEffect } from 'react'
-import { DragController, DragRegistry, DrawerRegistry } from '../core'
+import type React from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
+import { DragRegistry, DrawerRegistry, setupNestingAnimation } from '../core'
 import {
-  DrawerRegistryContext,
-  DragSetupContext,
-  type DragSetup,
+  NestingContext,
+  type NestingContextValue,
+  type NestingConnector,
   DrawerContext,
 } from './context'
-import { setupNestingAnimation } from './setup-nesting-animation'
 import { useDrawerRoot, type DrawerRootAPI } from './use-drawer'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
 import { useStatic } from './utils/use-static'
@@ -18,7 +18,6 @@ interface NestingDrawerProviderProps {
 /**
  * Provides nesting support for descendant Drawer components.
  * Wrap this around your app (or a subtree) to enable nested drawer features:
- * tree queries (getChildren, getAncestors, getFrontmostOpen),
  * drag-time ancestor scale interpolation, and cascade close.
  *
  * When no NestingDrawerProvider is present, drawers function independently —
@@ -50,14 +49,9 @@ export function NestingDrawerProvider({
     return () => dragRegistry.dispose()
   }, [dragRegistry])
 
-  const dragSetup: DragSetup = useCallback(
+  const connector: NestingConnector = useCallback(
     (params) => {
-      const controller = new DragController({
-        element: params.element,
-        overlayElement: params.overlayElement,
-        machine: params.machine,
-      })
-      const cleanupDrag = dragRegistry.register(params.id, controller)
+      const cleanupDrag = dragRegistry.register(params.id, params.controller)
       const cleanupNesting = setupNestingAnimation({
         registry: drawerRegistry,
         drawerId: params.id,
@@ -71,15 +65,15 @@ export function NestingDrawerProvider({
     [dragRegistry, drawerRegistry],
   )
 
+  const nestingValue: NestingContextValue = useMemo(
+    () => ({ registry: drawerRegistry, connector }),
+    [drawerRegistry, connector],
+  )
+
   return (
-    <DrawerRegistryContext value={drawerRegistry}>
-      <DragSetupContext value={dragSetup}>{children}</DragSetupContext>
-    </DrawerRegistryContext>
+    <NestingContext value={nestingValue}>{children}</NestingContext>
   )
 }
-
-/** @deprecated Use {@link NestingDrawerProvider} instead. */
-export const DrawerRegistryProvider = NestingDrawerProvider
 
 interface DrawerProviderAPI {
   isOpen: boolean
@@ -89,6 +83,7 @@ interface DrawerProviderProps extends DrawerRootAPI {
   children: (api: DrawerProviderAPI) => React.ReactNode
 }
 
+/** @internal */
 export function DrawerProvider({ children, ...props }: DrawerProviderProps) {
   const { isOpen, handleIsOpenChange, contextValue } = useDrawerRoot(props)
 

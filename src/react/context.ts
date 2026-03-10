@@ -3,51 +3,30 @@ import type {
   DrawerMachine,
   DrawerId,
   DrawerRegistry,
+  DragController,
 } from '../core'
 
-// ── DragSetup ─────────────────────────────────────────────────
-
 /**
- * Factory function provided by NestingDrawerProvider.
- * Sets up coordinated drag handling and nesting animation for a drawer element.
- * Returns a cleanup function.
+ * Connects a drawer's content element and drag controller into the nesting
+ * coordination system (drag registry + nesting animation).
+ * Returns a cleanup function that disconnects when the element unmounts.
  *
  * @internal
  */
-export type DragSetup = (params: {
+export type NestingConnector = (params: {
   id: DrawerId
   element: HTMLElement
-  overlayElement: HTMLElement | null
-  machine: DrawerMachine
+  controller: DragController
 }) => () => void
 
 /** @internal */
-export const DragSetupContext = createContext<DragSetup | null>(null)
-
-// ── DrawerRegistryContext ─────────────────────────────────────
+export interface NestingContextValue {
+  registry: DrawerRegistry
+  connector: NestingConnector
+}
 
 /** @internal */
-export const DrawerRegistryContext = createContext<DrawerRegistry | null>(null)
-
-/** @internal — Returns null when no NestingDrawerProvider is present. */
-export function useDrawerRegistryOptional(): DrawerRegistry | null {
-  return useContext(DrawerRegistryContext)
-}
-
-/** @internal — Throws if no NestingDrawerProvider is present. */
-export function useDrawerRegistry(): DrawerRegistry {
-  const context = useContext(DrawerRegistryContext)
-  if (!context) {
-    if (__DEV__) {
-      throw new Error('Drawer components must be used within a Drawer.NestingProvider')
-    } else {
-      throw new Error('[Drawer] Invalid usage')
-    }
-  }
-  return context
-}
-
-// ── DrawerContext ────────────────────────────────────────────
+export const NestingContext = createContext<NestingContextValue | null>(null)
 
 /** @internal */
 export interface DrawerContextValue {
@@ -55,6 +34,7 @@ export interface DrawerContextValue {
   machine: DrawerMachine
   contentRef: React.RefObject<HTMLDivElement | null>
   overlayRef: React.RefObject<HTMLDivElement | null>
+  nestingConnector: NestingConnector | null
 }
 
 /** @internal */

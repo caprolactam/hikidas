@@ -1,1 +1,0 @@
-export { setupNestingAnimation } from '../core'
