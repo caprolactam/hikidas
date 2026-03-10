@@ -1,11 +1,40 @@
 import { createContext, useContext } from 'react'
-import type { DrawerMachine } from '../core/drawer-machine'
+import type {
+  DrawerMachine,
+  DrawerId,
+  DrawerRegistry,
+  DragController,
+} from '../core'
+
+/**
+ * Connects a drawer's content element and drag controller into the nesting
+ * coordination system (drag registry + nesting animation).
+ * Returns a cleanup function that disconnects when the element unmounts.
+ *
+ * @internal
+ */
+export type NestingConnector = (params: {
+  id: DrawerId
+  element: HTMLElement
+  controller: DragController
+}) => () => void
+
+/** @internal */
+export interface NestingContextValue {
+  registry: DrawerRegistry
+  connector: NestingConnector
+}
+
+/** @internal */
+export const NestingContext = createContext<NestingContextValue | null>(null)
 
 /** @internal */
 export interface DrawerContextValue {
+  id: DrawerId
   machine: DrawerMachine
   contentRef: React.RefObject<HTMLDivElement | null>
   overlayRef: React.RefObject<HTMLDivElement | null>
+  nestingConnector: NestingConnector | null
 }
 
 /** @internal */
@@ -22,4 +51,11 @@ export function useDrawerContext() {
     }
   }
   return context
+}
+
+/** @internal */
+export function useParentDrawerId(): DrawerId | null {
+  const parentContext = useContext(DrawerContext)
+
+  return parentContext ? parentContext.id : null
 }

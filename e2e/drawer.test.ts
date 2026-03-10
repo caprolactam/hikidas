@@ -316,7 +316,7 @@ test.describe('DisableDragDismiss', () => {
 
 test.describe('SnapPoints', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(storyUrl('drawer--snap-points'))
+    await page.goto(storyUrl('drawer-snap-points--snap-points'))
   })
 
   test('dragging down slowly snaps to the next lower snap point', async ({
@@ -391,7 +391,7 @@ test.describe('SnapPoints', () => {
 
 test.describe('SnapPointsWithDefaultIndex', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(storyUrl('drawer--snap-points-with-default-index'))
+    await page.goto(storyUrl('drawer-snap-points--snap-points-with-default-index'))
   })
 
   test('opens to the middle (50%) snap point by default', async ({ page }) => {
@@ -419,7 +419,7 @@ test.describe('SnapPointsWithDefaultIndex', () => {
 
 test.describe('ControlledSnapPoints', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(storyUrl('drawer--controlled-snap-points'))
+    await page.goto(storyUrl('drawer-snap-points--controlled-snap-points'))
   })
 
   test('initial active snap index is 2 (100%)', async ({ page }) => {
@@ -455,7 +455,7 @@ test.describe('ControlledSnapPoints', () => {
 
 test.describe('SnapPointsWithDisableDragDismiss', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(storyUrl('drawer--snap-points-with-disable-drag-dismiss'))
+    await page.goto(storyUrl('drawer-snap-points--snap-points-with-disable-drag-dismiss'))
   })
 
   async function openDrawerAtLowestSnap(page: Page) {

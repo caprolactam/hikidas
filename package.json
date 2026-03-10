@@ -26,26 +26,26 @@
   "sideEffects": false,
   "exports": {
     "./base-ui": {
-      "types": "./dist/base-ui/adapters/base-ui/index.d.ts",
+      "types": "./dist/types/react/adapters/base-ui/index.d.ts",
       "development": "./dist/base-ui/index.dev.js",
       "production": "./dist/base-ui/index.prod.js",
       "default": "./dist/base-ui/index.prod.js"
     },
     "./radix-ui": {
-      "types": "./dist/radix-ui/adapters/radix-ui/index.d.ts",
+      "types": "./dist/types/react/adapters/radix-ui/index.d.ts",
       "development": "./dist/radix-ui/index.dev.js",
       "production": "./dist/radix-ui/index.prod.js",
       "default": "./dist/radix-ui/index.prod.js"
     },
     "./headlessui": {
-      "types": "./dist/headlessui/adapters/headlessui/index.d.ts",
+      "types": "./dist/types/react/adapters/headlessui/index.d.ts",
       "development": "./dist/headlessui/index.dev.js",
       "production": "./dist/headlessui/index.prod.js",
       "default": "./dist/headlessui/index.prod.js"
     }
   },
   "scripts": {
-    "build": "rimraf ./dist && rollup -c",
+    "build": "rimraf ./dist && rollup -c && tsc --project tsconfig.declarations.json --emitDeclarationOnly",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
     "format": "oxfmt --write",

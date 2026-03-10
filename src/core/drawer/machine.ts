@@ -1,14 +1,16 @@
 import { createDirection } from './direction'
 import {
-  drawerReducer,
-  drawerReducerInit,
   type DrawerConfig,
-  type DrawerConfigInput,
-  type DrawerState,
-  type DrawerEvent,
   type Phase,
   type TransitionablePhase,
   type EndDragPayload,
+} from './phase'
+import {
+  drawerReducer,
+  drawerReducerInit,
+  type DrawerConfigInput,
+  type DrawerState,
+  type DrawerEvent,
   ACTION_OPEN_REQUEST,
   ACTION_CLOSE_REQUEST,
   ACTION_START_TRACKING,
@@ -117,8 +119,8 @@ export class DrawerMachine {
     })
   }
 
-  registerTransitionPart = (phase: Phase) =>
-    this.#transitionCoordinator.register(phase)
+  registerTransitionPart = () =>
+    this.#transitionCoordinator.register(this.snapshot.phase)
 
   subscribePhaseChange = (listener: PhaseChangeListener): (() => void) => {
     this.#phaseChangeListeners.add(listener)

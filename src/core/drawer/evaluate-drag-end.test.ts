@@ -6,7 +6,7 @@ import {
   TransitionKind,
   type DrawerConfig,
   type EndDragPayload,
-} from './reducer'
+} from './phase'
 import type { SnapMode } from './snap-mode'
 
 const BINARY: SnapMode = { type: 'binary' }

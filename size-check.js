@@ -1,74 +1,106 @@
 #!/usr/bin/env node
-import { readFileSync, rmSync } from 'node:fs'
+import { readFileSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
-import { getBabelOutputPlugin } from '@rollup/plugin-babel'
-import terser from '@rollup/plugin-terser'
-import typescript from '@rollup/plugin-typescript'
-import { rollup } from 'rollup'
-import banner from 'rollup-plugin-banner2'
+import { build } from 'vite'
 import pkg from './package.json' with { type: 'json' }
 
-const external = (id) =>
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
+// Exclude all peer deps (hikidas-only builds)
+const externalAll = (id) =>
   [
     ...Object.keys(pkg.dependencies || {}),
     ...Object.keys(pkg.peerDependencies || {}),
-  ].some((d) => id.startsWith(d))
+  ].some((d) => id === d || id.startsWith(d + '/'))
 
-/**
- * Rollup設定を生成
- * @param {string} adapterName - アダプター名
- * @param {boolean} withTerser - Terserを使用するか
- * @returns {import('rollup').RollupOptions}
- */
-function createBuildConfig(adapterName, withTerser) {
-  const outputFile = withTerser
-    ? `dist/.temp/${adapterName}-minified.js`
-    : `dist/.temp/${adapterName}.js`
+// Exclude only react/react-dom (peer-lib-bundled builds)
+const externalReactOnly = (id) =>
+  ['react', 'react-dom'].some((d) => id === d || id.startsWith(d + '/'))
 
-  return {
-    input: `src/adapters/${adapterName}/index.ts`,
-    output: {
-      file: outputFile,
-      format: 'esm',
-      sourcemap: false,
-    },
-    plugins: [
-      typescript({
-        tsconfig: './tsconfig.build.json',
-        declaration: false, // 型定義は不要
-        sourceMap: false,
-      }),
-      getBabelOutputPlugin({
-        plugins: ['@babel/plugin-transform-react-pure-annotations'],
-      }),
-      ...(withTerser
-        ? [
-            terser({
-              ecma: 2020,
-              module: true,
-              compress: {
-                passes: 5,
-                unsafe: true,
-                keep_fargs: false,
-              },
-              mangle: {
-                properties: true,
-              },
-              format: {
-                preserve_annotations: true,
-              },
-            }),
-          ]
-        : []),
-      banner(() => '"use client";\n'),
-    ],
-    external,
-  }
+// Named exports per adapter excluding NestingDrawerProvider
+const CORE_EXPORTS = {
+  'radix-ui': [
+    'DrawerRoot',
+    'DrawerOverlay',
+    'DrawerContent',
+    'DrawerTrigger',
+    'DrawerPortal',
+    'DrawerClose',
+    'DrawerTitle',
+    'DrawerDescription',
+    'Drawer',
+  ],
+  'base-ui': [
+    'DrawerRoot',
+    'DrawerBackdrop',
+    'DrawerPopup',
+    'DrawerTrigger',
+    'DrawerPortal',
+    'DrawerViewport',
+    'DrawerTitle',
+    'DrawerDescription',
+    'DrawerClose',
+    'Drawer',
+  ],
+  headlessui: [
+    'DrawerRoot',
+    'DrawerBackdrop',
+    'DrawerPanel',
+    'DrawerTitle',
+    'DrawerClose',
+    'Drawer',
+  ],
+}
+
+// Synthetic entry that imports only what the adapter uses from its peer lib
+const PEER_LIB_ENTRY_CODE = {
+  'radix-ui': `import { Dialog } from 'radix-ui'\nexport { Dialog }\n`,
+  'base-ui': `import { Dialog } from '@base-ui/react/dialog'\nexport { Dialog }\n`,
+  headlessui: `import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, CloseButton } from '@headlessui/react'\nexport { Dialog, DialogBackdrop, DialogPanel, DialogTitle, CloseButton }\n`,
+}
+
+const PEER_LIB_LABEL = {
+  'radix-ui': 'radix-ui',
+  'base-ui': '@base-ui/react',
+  headlessui: '@headlessui/react',
 }
 
 /**
- * ファイルサイズを取得
- * @param {string} filePath - ファイルパス
+ * @param {string} entry - relative path from project root
+ * @param {string} outputName - output filename without extension
+ * @param {{ external: (id: string) => boolean }} options
+ * @returns {Promise<{ raw: number, gzip: number }>}
+ */
+async function viteBuild(entry, outputName, { external }) {
+  await build({
+    root: __dirname,
+    build: {
+      lib: {
+        entry: resolve(__dirname, entry),
+        formats: ['es'],
+      },
+      rollupOptions: {
+        external,
+        output: {
+          entryFileNames: `${outputName}.js`,
+        },
+      },
+      outDir: 'dist/.temp',
+      // TODO: this will be replaced with oxc in Vite v8.
+      minify: 'terser',
+      write: true,
+      emptyOutDir: false,
+      sourcemap: false,
+    },
+    logLevel: 'silent',
+  })
+  return getFileSize(`dist/.temp/${outputName}.js`)
+}
+
+/**
+ * @param {string} filePath
  * @returns {{ raw: number, gzip: number }}
  */
 function getFileSize(filePath) {
@@ -79,8 +111,7 @@ function getFileSize(filePath) {
 }
 
 /**
- * バイト数を人間が読める形式に変換
- * @param {number} bytes - バイト数
+ * @param {number} bytes
  * @returns {string}
  */
 function formatBytes(bytes) {
@@ -92,79 +123,139 @@ function formatBytes(bytes) {
 }
 
 /**
- * パーセンテージを計算
- * @param {number} original - 元のサイズ
- * @param {number} minified - 圧縮後のサイズ
+ * @param {number} bytes
  * @returns {string}
  */
-function calculateReduction(original, minified) {
-  const reduction = ((original - minified) / original) * 100
-  return `${reduction.toFixed(1)}%`
+function formatDiff(bytes) {
+  const sign = bytes >= 0 ? '+' : '-'
+  return `${sign}${formatBytes(Math.abs(bytes))}`
 }
 
 /**
- * ビルドを実行してサイズを測定
- * @param {string} adapterName - アダプター名
+ * @param {string} title
+ * @param {[string, string, string][]} rows
  */
-async function measureBuildSize(adapterName) {
-  console.log(`\n📦 Building ${adapterName} adapter...\n`)
+function printTable(title, rows) {
+  const C1 = 31
+  const C2 = 12
+  const C3 = 12
+  const sep = (l, m, r, f) =>
+    l + f.repeat(C1 + 2) + m + f.repeat(C2 + 2) + m + f.repeat(C3 + 2) + r
 
-  // Terserなしでビルド
-  console.log('⏳ Building without minification...')
-  const configWithoutTerser = createBuildConfig(adapterName, false)
-  const bundleWithout = await rollup(configWithoutTerser)
-  await bundleWithout.write(configWithoutTerser.output)
-  await bundleWithout.close()
-  const sizeWithout = getFileSize(configWithoutTerser.output.file)
-
-  // Terserありでビルド
-  console.log('⏳ Building with Terser minification...')
-  const configWithTerser = createBuildConfig(adapterName, true)
-  const bundleWith = await rollup(configWithTerser)
-  await bundleWith.write(configWithTerser.output)
-  await bundleWith.close()
-  const sizeWith = getFileSize(configWithTerser.output.file)
-
-  // 結果を表示
-  console.log('\n📊 Build Size Comparison\n')
+  console.log(`\n${title}`)
+  console.log(sep('┌', '┬', '┐', '─'))
   console.log(
-    '┌─────────────────────────────┬──────────────┬──────────────┬────────────┐',
+    `│ ${''.padEnd(C1)} │ ${'Raw'.padEnd(C2)} │ ${'Gzip'.padEnd(C3)} │`,
   )
-  console.log(
-    '│ Configuration               │ Raw Size     │ Gzip Size    │ Reduction  │',
-  )
-  console.log(
-    '├─────────────────────────────┼──────────────┼──────────────┼────────────┤',
-  )
-  console.log(
-    `│ Without Terser              │ ${formatBytes(sizeWithout.raw).padEnd(12)} │ ${formatBytes(sizeWithout.gzip).padEnd(12)} │ -          │`,
-  )
-  console.log(
-    `│ With Terser (passes: 5)     │ ${formatBytes(sizeWith.raw).padEnd(12)} │ ${formatBytes(sizeWith.gzip).padEnd(12)} │ ${calculateReduction(sizeWithout.raw, sizeWith.raw).padEnd(10)} │`,
-  )
-  console.log(
-    '└─────────────────────────────┴──────────────┴──────────────┴────────────┘',
-  )
-
-  console.log('\n💡 Analysis:')
-  console.log(
-    `   • Terser reduces raw size by ${calculateReduction(sizeWithout.raw, sizeWith.raw)} (${formatBytes(sizeWithout.raw - sizeWith.raw)} saved)`,
-  )
-  console.log(
-    `   • Terser reduces gzip size by ${calculateReduction(sizeWithout.gzip, sizeWith.gzip)} (${formatBytes(sizeWithout.gzip - sizeWith.gzip)} saved)`,
-  )
-  console.log(
-    '\n📝 Note: Most modern bundlers (Vite, Next.js, etc.) will minify your',
-  )
-  console.log(
-    '   application code, so library-level minification has limited impact.',
-  )
-  console.log('')
-
-  rmSync('dist/.temp', { recursive: true })
+  console.log(sep('├', '┼', '┤', '─'))
+  for (const [label, raw, gzip] of rows) {
+    console.log(
+      `│ ${label.padEnd(C1)} │ ${raw.padEnd(C2)} │ ${gzip.padEnd(C3)} │`,
+    )
+  }
+  console.log(sep('└', '┴', '┘', '─'))
 }
 
-// メイン処理
+/**
+ * @param {string} adapterName
+ */
+async function measureBuildSize(adapterName) {
+  console.log(`\n📦 Measuring ${adapterName} adapter...\n`)
+
+  const tempDir = 'dist/.temp'
+  const entriesDir = `${tempDir}/entries`
+  mkdirSync(entriesDir, { recursive: true })
+
+  try {
+    // Core entry: imports named exports (no NestingDrawerProvider) from source
+    const coreEntryFile = `${entriesDir}/${adapterName}-core.js`
+    writeFileSync(
+      coreEntryFile,
+      `export { ${CORE_EXPORTS[adapterName].join(', ')} } from '../../../dist/${adapterName}/index.prod.js'\n`,
+    )
+
+    // Full entry: re-exports everything from source
+    const fullEntryFile = `${entriesDir}/${adapterName}-full.js`
+    writeFileSync(
+      fullEntryFile,
+      `export * from '../../../dist/${adapterName}/index.prod.js'\n`,
+    )
+
+    // Peer lib entry: imports directly from peer lib
+    const peerLibEntryFile = `${entriesDir}/${adapterName}-peer-lib.js`
+    writeFileSync(peerLibEntryFile, PEER_LIB_ENTRY_CODE[adapterName])
+
+    const peerLibLabel = PEER_LIB_LABEL[adapterName]
+
+    console.log('⏳ (1/4) hikidas core (no NestingDrawer)...')
+    const coreSize = await viteBuild(coreEntryFile, `${adapterName}-core`, {
+      external: externalAll,
+    })
+
+    console.log('⏳ (2/4) hikidas full (with NestingDrawer)...')
+    const fullSize = await viteBuild(fullEntryFile, `${adapterName}-full`, {
+      external: externalAll,
+    })
+
+    console.log(`⏳ (3/4) ${peerLibLabel} alone...`)
+    const peerLibSize = await viteBuild(
+      peerLibEntryFile,
+      `${adapterName}-peer-lib`,
+      { external: externalReactOnly },
+    )
+
+    console.log(`⏳ (4/4) hikidas + ${peerLibLabel}...`)
+    const totalSize = await viteBuild(fullEntryFile, `${adapterName}-total`, {
+      external: externalReactOnly,
+    })
+
+    const nestingRaw = fullSize.raw - coreSize.raw
+    const nestingGzip = fullSize.gzip - coreSize.gzip
+    const hikidasAddsRaw = totalSize.raw - peerLibSize.raw
+    const hikidasAddsGzip = totalSize.gzip - peerLibSize.gzip
+
+    printTable('🌳 Tree-shaking (hikidas only, minified + gzip)', [
+      [
+        'Core (no NestingDrawer)',
+        formatBytes(coreSize.raw),
+        formatBytes(coreSize.gzip),
+      ],
+      [
+        'Full (+ NestingDrawer)',
+        formatBytes(fullSize.raw),
+        formatBytes(fullSize.gzip),
+      ],
+      [
+        '  NestingDrawer overhead',
+        formatDiff(nestingRaw),
+        formatDiff(nestingGzip),
+      ],
+    ])
+
+    printTable(`📐 With ${peerLibLabel} bundled (minified + gzip)`, [
+      [
+        `${peerLibLabel} alone`,
+        formatBytes(peerLibSize.raw),
+        formatBytes(peerLibSize.gzip),
+      ],
+      [
+        `hikidas + ${peerLibLabel}`,
+        formatBytes(totalSize.raw),
+        formatBytes(totalSize.gzip),
+      ],
+      [
+        '  hikidas adds',
+        formatDiff(hikidasAddsRaw),
+        formatDiff(hikidasAddsGzip),
+      ],
+    ])
+
+    console.log('')
+  } finally {
+    rmSync(tempDir, { recursive: true })
+  }
+}
+
 const adapterName = process.argv[2] || 'radix-ui'
 
 if (!['base-ui', 'radix-ui', 'headlessui'].includes(adapterName)) {

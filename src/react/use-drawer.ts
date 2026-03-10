@@ -1,27 +1,30 @@
 import {
+  useContext,
   useMemo,
   useRef,
   useCallback,
   useEffect,
+  useId,
   useState,
   useSyncExternalStore,
 } from 'react'
-import { DrawerMachine } from '../core/drawer-machine'
-import { Phase, isOpenPhase } from '../core/reducer'
-import type { DismissalDirection } from '../core/types'
-import { composeEventHandlers } from '../core/utils/compose-event-handlers'
+import type React from 'react'
 import {
-  DrawerContext,
+  DrawerMachine,
+  Phase,
+  isOpenPhase,
+  DragController,
+  setupContentAnimation,
+  setupOverlayAnimation,
+  type DismissalDirection,
+} from '../core'
+import {
   type DrawerContextValue,
   useDrawerContext,
+  useParentDrawerId,
+  NestingContext,
 } from './context'
-import {
-  useContentAnimation,
-  useOverlayAnimation,
-} from './use-drawer-animation'
-import { useDrawerGesture } from './use-drawer-gesture'
 import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
-import { useMergeRefs } from './utils/use-merge-refs'
 import { useStatic } from './utils/use-static'
 
 export interface DrawerRootAPI {
@@ -133,26 +136,8 @@ export interface DrawerRootAPI {
   onSnapPointChange?: (snapPointIndex: number) => void
 }
 
-interface DrawerProviderAPI {
-  isOpen: boolean
-  handleIsOpenChange: (open: boolean) => void
-}
-interface DrawerProviderProps extends DrawerRootAPI {
-  children: (api: DrawerProviderAPI) => React.ReactNode
-}
-
-export function DrawerProvider({ children, ...props }: DrawerProviderProps) {
-  const { isOpen, handleIsOpenChange, contextValue } = useDrawerRoot(props)
-
-  return (
-    <DrawerContext value={contextValue}>
-      {children({ isOpen, handleIsOpenChange })}
-      {__DEV__ ? <SnapPointsWarning snapPoints={props.snapPoints} /> : null}
-    </DrawerContext>
-  )
-}
-
-function useDrawerRoot({
+/** @internal */
+export function useDrawerRoot({
   defaultOpen,
   open,
   onOpenChange,
@@ -163,6 +148,10 @@ function useDrawerRoot({
   snapPoint,
   onSnapPointChange,
 }: DrawerRootAPI) {
+  const id = useId()
+  const parentDrawerId = useParentDrawerId()
+  const nesting = useContext(NestingContext)
+
   const [desiredOpen, setDesiredOpen] = useControllableState({
     value: open,
     defaultValue: !!defaultOpen,
@@ -197,6 +186,16 @@ function useDrawerRoot({
         },
       ),
   )
+
+  // Register with DrawerRegistry only when NestingDrawerProvider is present
+  useEffect(() => {
+    if (!nesting) return
+    return nesting.registry.register({
+      id,
+      parentId: parentDrawerId,
+      machine,
+    })
+  }, [id, parentDrawerId, nesting, machine])
 
   useEffect(() => {
     machine.updateConfig({
@@ -264,14 +263,16 @@ function useDrawerRoot({
 
   const contentRef = useRef<HTMLDivElement | null>(null)
   const overlayRef = useRef<HTMLDivElement | null>(null)
-
+  const nestingConnector = nesting?.connector ?? null
   const contextValue: DrawerContextValue = useMemo(
     () => ({
+      id,
       machine,
       contentRef,
       overlayRef,
+      nestingConnector,
     }),
-    [machine],
+    [id, machine, nestingConnector],
   )
 
   return {
@@ -281,43 +282,16 @@ function useDrawerRoot({
   }
 }
 
-function SnapPointsWarning({ snapPoints }: Pick<DrawerRootAPI, 'snapPoints'>) {
-  const isBinaryMode = !snapPoints || snapPoints.length === 0
-
-  useEffect(() => {
-    if (isBinaryMode) return
-
-    // Validate range
-    if (snapPoints.some((p) => p <= 0 || p > 1)) {
-      console.warn(
-        '[Drawer] snapPoints must be in range greater than 0 and less than or equal to 1. Found:',
-        snapPoints,
-      )
-    }
-
-    // Validate ascending order
-    if (snapPoints.length <= 1) return
-    for (let i = 1; i < snapPoints.length; i++) {
-      if (snapPoints[i]! <= snapPoints[i - 1]!) {
-        console.warn(
-          '[Drawer] snapPoints must be in ascending order. Found:',
-          snapPoints,
-        )
-        break
-      }
-    }
-  }, [snapPoints, isBinaryMode])
-
-  return null
-}
-
 export function useDrawerOverlay(externalRef?: React.Ref<HTMLDivElement>) {
   const { machine, overlayRef } = useDrawerContext()
 
-  useOverlayAnimation({
-    elementRef: overlayRef,
-    machine,
-  })
+  useIsomorphicEffect(
+    function overlayAnimation() {
+      if (!overlayRef.current) return
+      return setupOverlayAnimation({ machine, element: overlayRef.current })
+    },
+    [machine, overlayRef],
+  )
 
   const ref = useMergeRefs([externalRef, overlayRef])
 
@@ -326,57 +300,50 @@ export function useDrawerOverlay(externalRef?: React.Ref<HTMLDivElement>) {
   }
 }
 
-export function useDrawerContent(props: {
-  ref?: React.Ref<HTMLDivElement>
-  onPointerDown?: React.PointerEventHandler
-  onPointerMove?: React.PointerEventHandler
-  onPointerUp?: React.PointerEventHandler
-  onPointerCancel?: React.PointerEventHandler
-  onContextMenu?: React.MouseEventHandler
-  style?: React.CSSProperties
-}): {
-  ref: React.Ref<HTMLDivElement>
-  onPointerDown: React.PointerEventHandler
-  onPointerMove: React.PointerEventHandler
-  onPointerUp: React.PointerEventHandler
-  onPointerCancel: React.PointerEventHandler
-  onContextMenu: React.MouseEventHandler
-  style: React.CSSProperties
-} {
-  const { machine, contentRef, overlayRef } = useDrawerContext()
-  useContentAnimation({
-    machine,
-    elementRef: contentRef,
-  })
+export function useDrawerContent(externalRef?: React.Ref<HTMLDivElement>) {
+  const { id, machine, contentRef, overlayRef, nestingConnector } =
+    useDrawerContext()
 
-  const handlers = useDrawerGesture({
-    machine,
-    contentRef,
-    overlayRef,
-  })
+  useIsomorphicEffect(
+    function contentAnimation() {
+      if (!contentRef.current) return
+      return setupContentAnimation({ machine, element: contentRef.current })
+    },
+    [machine, contentRef],
+  )
 
-  const ref = useMergeRefs([props.ref, contentRef])
+  useEffect(() => {
+    if (!contentRef.current) return
+
+    let cleanups: Array<() => void> = []
+
+    const controller = new DragController({
+      element: contentRef.current,
+      overlayElement: overlayRef.current,
+      machine,
+    })
+    cleanups.push(controller.dispose.bind(controller))
+
+    if (nestingConnector) {
+      const nestingCleanup = nestingConnector({
+        id,
+        element: contentRef.current,
+        controller,
+      })
+      cleanups.push(nestingCleanup)
+    }
+
+    return () => {
+      for (const cleanup of cleanups) {
+        cleanup()
+      }
+    }
+  }, [nestingConnector, id, contentRef, overlayRef, machine])
+
+  const ref = useMergeRefs([externalRef, contentRef])
 
   return {
     ref,
-    onPointerDown: composeEventHandlers(
-      props.onPointerDown,
-      handlers.onPointerDown,
-    ),
-    onPointerMove: composeEventHandlers(
-      props.onPointerMove,
-      handlers.onPointerMove,
-    ),
-    onPointerUp: composeEventHandlers(props.onPointerUp, handlers.onPointerUp),
-    onPointerCancel: composeEventHandlers(
-      props.onPointerCancel,
-      handlers.onPointerCancel,
-    ),
-    onContextMenu: composeEventHandlers(
-      props.onContextMenu,
-      handlers.onContextMenu,
-    ),
-    style: { touchAction: 'none', ...props.style },
   }
 }
 
@@ -441,4 +408,32 @@ function useLatestRef<T>(value: T) {
   }, [value])
 
   return ref
+}
+
+function useMergeRefs<T>(
+  refs: readonly (React.Ref<T> | undefined)[],
+): React.Ref<T> {
+  return useCallback((instance: T | null) => {
+    let cleanups: Array<(() => void) | void> = []
+
+    for (const ref of refs) {
+      if (ref) {
+        if (typeof ref === 'function') {
+          const cleanup = ref(instance)
+          cleanups.push(cleanup)
+        } else {
+          ref.current = instance
+        }
+      }
+    }
+
+    return () => {
+      for (const cleanup of cleanups) {
+        if (typeof cleanup === 'function') {
+          cleanup()
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, refs)
 }
