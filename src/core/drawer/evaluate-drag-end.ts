@@ -4,7 +4,7 @@ import {
   type TransitionHint,
   type DrawerConfig,
   type EndDragPayload,
-} from './reducer'
+} from './phase'
 import {
   getActiveSnapRatio,
   getMinSnapRatio,
@@ -30,9 +30,9 @@ import {
 
 /** @internal */
 export type DragEndEvaluation =
-  | { phase: Phase.Closing; transitionHint: TransitionHint }
+  | { phase: typeof Phase.Closing; transitionHint: TransitionHint }
   | {
-      phase: Phase.Settling
+      phase: typeof Phase.Settling
       snapMode: SnapMode
       transitionHint: TransitionHint
     }

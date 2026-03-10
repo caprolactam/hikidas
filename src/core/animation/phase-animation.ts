@@ -1,25 +1,34 @@
-import type { RefObject } from 'react'
-import {
-  initAnimate,
-  type AnimatableProperties,
-  type SpringAnimateConfig,
-} from '../core/animation/animate'
-import type { Direction } from '../core/direction'
-import type { DrawerMachine } from '../core/drawer-machine'
-import {
-  Phase,
-  TransitionKind,
-  type TransitionablePhase,
-  type TransitionHint,
-} from '../core/reducer'
-import { getActiveSnapRatio, type SnapMode } from '../core/snap-mode'
-import { parseTransform } from '../core/utils/parse-transform'
-import { useIsomorphicEffect } from './utils/use-isomorphic-effect'
-import { useStatic } from './utils/use-static'
+import type { Direction } from '../drawer/direction'
+import type { DrawerMachine } from '../drawer/machine'
+import type { TransitionablePhase, TransitionHint } from '../drawer/phase'
+import { Phase, TransitionKind } from '../drawer/phase'
+import type { SnapMode } from '../drawer/snap-mode'
+import { getActiveSnapRatio } from '../drawer/snap-mode'
+import type { AnimatableProperties, SpringAnimateConfig } from './animate'
+import { initAnimate, parseTransform } from './animate'
 
-interface DrawerAnimationProps {
-  elementRef: RefObject<HTMLElement | null>
+/** @internal */
+export function setupContentAnimation(params: {
   machine: DrawerMachine
+  element: HTMLElement
+}): () => void {
+  return setupPhaseAnimation({
+    ...params,
+    getVariant: getContentVariant,
+    resolveSpringConfig: resolveDefaultSpringConfig,
+  })
+}
+
+/** @internal */
+export function setupOverlayAnimation(params: {
+  machine: DrawerMachine
+  element: HTMLElement
+}): () => void {
+  return setupPhaseAnimation({
+    ...params,
+    getVariant: getOverlayVariant,
+    resolveSpringConfig: resolveOverlaySpringConfig,
+  })
 }
 
 type GetVariant = (props: {
@@ -35,76 +44,54 @@ type ResolveSpringConfig = (props: {
   direction: Direction
 }) => SpringAnimateConfig
 
-function useDrawerAnimationBase({
-  elementRef,
-  machine,
-  getVariant,
-  resolveSpringConfig,
-}: DrawerAnimationProps & {
+function setupPhaseAnimation(params: {
+  machine: DrawerMachine
+  element: HTMLElement
   getVariant: GetVariant
   resolveSpringConfig: ResolveSpringConfig
-}) {
-  const animate = useAnimate()
+}): () => void {
+  const { machine, element, getVariant, resolveSpringConfig } = params
+  const animate = initAnimate()
 
-  useIsomorphicEffect(() => {
-    function phaseAnimation(phase: Phase) {
-      if (!elementRef.current) return
-      const element = elementRef.current
+  function run() {
+    const values = machine.registerTransitionPart()
+    if (!values.isTransitionable) return
 
-      const values = machine.registerTransitionPart(phase)
-      if (!values.isTransitionable) return
+    const { phase: transitionPhase, reportComplete, reportCancel } = values
 
-      const { phase: transitionPhase, reportComplete, reportCancel } = values
+    const {
+      config: { direction },
+      transitionHint,
+      snapMode,
+    } = machine.snapshot
 
-      const snapshot = machine.snapshot
-      const {
-        config: { direction },
-        transitionHint,
-        snapMode,
-      } = snapshot
-
-      animate
-        .play(
-          element,
-          (prevStyle) =>
-            getVariant({
-              phase: transitionPhase,
-              direction,
-              prevStyle,
-              snapMode,
-            }),
-          resolveSpringConfig({
+    animate
+      .play(
+        element,
+        (prevStyle) =>
+          getVariant({
             phase: transitionPhase,
-            transitionHint,
             direction,
+            prevStyle,
+            snapMode,
           }),
-        )
-        .then(reportComplete)
-        .catch(reportCancel)
-    }
+        resolveSpringConfig({
+          phase: transitionPhase,
+          transitionHint,
+          direction,
+        }),
+      )
+      .then(reportComplete)
+      .catch(reportCancel)
+  }
 
-    phaseAnimation(machine.snapshot.phase) // Animate to the correct position on mount
+  run()
+  const unsubscribe = machine.subscribePhaseChange(run)
 
-    return machine.subscribePhaseChange(phaseAnimation)
-  }, [machine, animate, getVariant, resolveSpringConfig, elementRef])
-}
-
-/** @internal */
-export function useContentAnimation(props: DrawerAnimationProps) {
-  return useDrawerAnimationBase({
-    ...props,
-    getVariant: getContentVariant,
-    resolveSpringConfig: resolveDefaultSpringConfig,
-  })
-}
-
-/** @internal */
-export function useOverlayAnimation(props: DrawerAnimationProps) {
-  return useDrawerAnimationBase({
-    ...props,
-    getVariant: getOverlayVariant,
-    resolveSpringConfig: resolveOverlaySpringConfig,
-  })
+  return () => {
+    unsubscribe()
+    animate.cleanup()
+  }
 }
 
 function getContentVariant({
@@ -205,24 +192,6 @@ const SPRING_CONFIGS: Record<
   },
 }
 
-const MAX_ANIMATION_VELOCITY_PX_PER_SEC = 3000
-
-function resolveVelocity(
-  transitionHint: TransitionHint,
-  direction: Direction,
-): number | null {
-  // For programmatic transitions, pass null to let animate use its internal velocity estimate.
-  if (transitionHint.kind === TransitionKind.Programmatic) return null
-  // transitionHint.velocityPxPerSec is in "dismiss-positive" space (positive = toward close).
-  // For 'up'/'left', CSS dismiss direction is negative, so we must negate the velocity
-  // to align with the animation range sign.
-  const raw = transitionHint.velocityPxPerSec * direction.dismissSign
-  return Math.min(
-    Math.max(raw, -MAX_ANIMATION_VELOCITY_PX_PER_SEC),
-    MAX_ANIMATION_VELOCITY_PX_PER_SEC,
-  )
-}
-
 function resolveDefaultSpringConfig({
   phase,
   transitionHint,
@@ -245,12 +214,20 @@ function resolveOverlaySpringConfig(
   }
 }
 
-function useAnimate() {
-  const animate = useStatic(() => initAnimate())
+const MAX_ANIMATION_VELOCITY_PX_PER_SEC = 3000
 
-  useIsomorphicEffect(() => {
-    return animate.cleanup
-  }, [animate])
-
-  return animate
+function resolveVelocity(
+  transitionHint: TransitionHint,
+  direction: Direction,
+): number | null {
+  // For programmatic transitions, pass null to let animate use its internal velocity estimate.
+  if (transitionHint.kind === TransitionKind.Programmatic) return null
+  // transitionHint.velocityPxPerSec is in "dismiss-positive" space (positive = toward close).
+  // For 'up'/'left', CSS dismiss direction is negative, so we must negate the velocity
+  // to align with the animation range sign.
+  const raw = transitionHint.velocityPxPerSec * direction.dismissSign
+  return Math.min(
+    Math.max(raw, -MAX_ANIMATION_VELOCITY_PX_PER_SEC),
+    MAX_ANIMATION_VELOCITY_PX_PER_SEC,
+  )
 }

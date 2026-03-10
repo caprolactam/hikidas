@@ -6,12 +6,14 @@ import {
   CloseButton,
 } from '@headlessui/react'
 import type React from 'react'
+import { NestingDrawerProvider, DrawerProvider } from '../../provider'
 import {
-  DrawerProvider,
   useDrawerContent,
   useDrawerOverlay,
   type DrawerRootAPI,
-} from '../../react/drawer-adapter'
+} from '../../use-drawer'
+
+export { NestingDrawerProvider }
 
 export interface DrawerRootProps
   extends
@@ -77,25 +79,10 @@ export interface DrawerPanelProps extends Omit<
   'transition'
 > {}
 
-export function DrawerPanel({
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
-  onContextMenu,
-  style,
-  ref,
-  ...props
-}: DrawerPanelProps) {
-  const contentProps = useDrawerContent({
-    ref: ref as React.Ref<HTMLDivElement> | undefined,
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    onPointerCancel,
-    onContextMenu,
-    style,
-  })
+export function DrawerPanel({ ref, ...props }: DrawerPanelProps) {
+  const contentProps = useDrawerContent(
+    ref as React.Ref<HTMLDivElement> | undefined,
+  )
 
   return <DialogPanel {...props} {...contentProps} />
 }

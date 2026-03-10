@@ -1,4 +1,4 @@
-import { Drawer } from '../src/adapters/radix-ui'
+import { Drawer } from '../src/react/adapters/radix-ui'
 
 export const Root = Drawer.Root
 

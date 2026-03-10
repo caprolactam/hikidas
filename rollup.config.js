@@ -18,7 +18,7 @@ function createAdapterConfig(adapterName, env) {
     : pkg.exports[exportPath].production
 
   return {
-    input: `src/adapters/${adapterName}/index.ts`,
+    input: `src/react/adapters/${adapterName}/index.ts`,
     output: {
       file: outputFile,
       format: 'esm',
@@ -31,7 +31,6 @@ function createAdapterConfig(adapterName, env) {
       }),
       typescript({
         tsconfig: './tsconfig.build.json',
-        outDir: `dist/${adapterName}`,
       }),
       getBabelOutputPlugin({
         plugins: ['@babel/plugin-transform-react-pure-annotations'],

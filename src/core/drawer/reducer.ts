@@ -1,42 +1,19 @@
-import type { Direction } from './direction'
+import type { Direction, DismissalDirection } from './direction'
 import { evaluateDragEnd } from './evaluate-drag-end'
+import {
+  Phase,
+  TransitionKind,
+  type TransitionHint,
+  type TransitionablePhase,
+  type DrawerConfig,
+  type EndDragPayload,
+} from './phase'
 import { type SnapMode, computeSnapMode, snapModeEquals } from './snap-mode'
-import type { DismissalDirection } from './types'
-
-/** @internal */
-export const enum Phase {
-  Closed = 'closed',
-  Opening = 'opening',
-  Idle = 'idle',
-  Tracking = 'tracking',
-  Dragging = 'dragging',
-  Settling = 'settling',
-  Closing = 'closing',
-}
-
-/** @internal */
-export interface DrawerConfig {
-  disableDragDismiss: boolean
-  direction: Direction
-}
 
 /** @internal */
 export type DrawerConfigInput = Omit<DrawerConfig, 'direction'> & {
   dismissalDirection: DismissalDirection
 }
-
-/** @internal */
-export const enum TransitionKind {
-  Flick = 'flick',
-  Release = 'release',
-  Programmatic = 'programmatic',
-}
-
-/** @internal */
-export type TransitionHint =
-  | { kind: TransitionKind.Flick; velocityPxPerSec: number }
-  | { kind: TransitionKind.Release; velocityPxPerSec: number }
-  | { kind: TransitionKind.Programmatic }
 
 const DEFAULT_HINT: TransitionHint = {
   kind: TransitionKind.Programmatic,
@@ -98,24 +75,9 @@ export type DrawerEvent =
     }
 
 /** @internal */
-export type TransitionablePhase = Phase.Opening | Phase.Closing | Phase.Settling
-
-/** @internal */
 export interface StartDragPayload {
   draggedDistance: { x: number; y: number }
   dragStartMinDistancePx: number
-}
-
-/** @internal */
-export interface EndDragPayload {
-  /** Drag end velocity in px/s (positive = toward dismiss direction) */
-  velocityPxPerSec: number
-  /** True when velocity tracker returned null (e.g. stale after 100ms idle). Velocity should be treated as zero. */
-  isVelocityStale: boolean
-  /** Visual drag distance actually reflected in the UI, as a ratio of constrained drawer size (signed, positive = dismiss direction) */
-  dragDistanceRatio: number
-  /** Constrained drawer size in px on the drag axis at drag end */
-  drawerSize: number
 }
 
 /** @internal */
@@ -267,22 +229,6 @@ export function drawerReducerInit({
     config,
     transitionHint: DEFAULT_HINT,
   }
-}
-
-/** @internal */
-export function isOpenPhase(phase: Phase): boolean {
-  return phase !== Phase.Closed
-}
-
-/** @internal */
-export function isTransitionablePhase(
-  phase: Phase,
-): phase is TransitionablePhase {
-  return (
-    phase === Phase.Opening ||
-    phase === Phase.Closing ||
-    phase === Phase.Settling
-  )
 }
 
 function shouldStartDrag({

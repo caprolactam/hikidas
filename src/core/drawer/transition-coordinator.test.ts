@@ -1,6 +1,6 @@
 import invariant from 'tiny-invariant'
 import { describe, expect, test, vi, beforeEach } from 'vitest'
-import { Phase } from './reducer'
+import { Phase } from './phase'
 import { TransitionCoordinator } from './transition-coordinator'
 
 beforeEach(() => {

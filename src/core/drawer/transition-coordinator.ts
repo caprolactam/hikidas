@@ -2,15 +2,17 @@ import {
   type Phase,
   type TransitionablePhase,
   isTransitionablePhase,
-} from './reducer'
+} from './phase'
 
 type TransitionId = symbol
 type PartsReadiness = Map<symbol, ReadinessStatus>
 
-const enum ReadinessStatus {
-  InProgress = 'in-progress',
-  Ready = 'ready',
-}
+const ReadinessStatus = {
+  InProgress: 'in-progress',
+  Ready: 'ready',
+} as const
+
+type ReadinessStatus = (typeof ReadinessStatus)[keyof typeof ReadinessStatus]
 
 /** @internal */
 export interface TransitionPartHandle {

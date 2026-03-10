@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState, useLayoutEffect, useRef } from 'react'
 import { initAnimate } from '../../src/core/animation/animate'
-import { parseTransform } from '../../src/core/utils/parse-transform'
 import { useStatic } from '../../src/react/utils/use-static'
 import { Track, TRAVEL, BOX_SIZE } from './components/common'
 import { MotionBox } from './components/motion'
 import { ReactSpringBox } from './components/react-spring'
+import { parseTransform } from './parse-transform'
 
 export default {
   title: 'Comparisons/Spring Reversal',

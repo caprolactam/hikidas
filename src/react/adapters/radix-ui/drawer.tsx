@@ -1,11 +1,13 @@
 import { Dialog } from 'radix-ui'
 import type React from 'react'
+import { NestingDrawerProvider, DrawerProvider } from '../../provider'
 import {
   useDrawerContent,
   useDrawerOverlay,
-  DrawerProvider,
   type DrawerRootAPI,
-} from '../../react/drawer-adapter'
+} from '../../use-drawer'
+
+export { NestingDrawerProvider }
 
 export interface DrawerRootProps
   extends
@@ -66,25 +68,8 @@ export interface DrawerContentProps extends Omit<
   'forceMount'
 > {}
 
-export function DrawerContent({
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
-  onContextMenu,
-  style,
-  ref,
-  ...props
-}: DrawerContentProps) {
-  const contentProps = useDrawerContent({
-    ref,
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    onPointerCancel,
-    onContextMenu,
-    style,
-  })
+export function DrawerContent({ ref, ...props }: DrawerContentProps) {
+  const contentProps = useDrawerContent(ref)
 
   return <Dialog.Content {...props} {...contentProps} />
 }
@@ -99,9 +84,7 @@ export interface DrawerPortalProps extends Omit<
   React.ComponentPropsWithRef<typeof Dialog.Portal>,
   'forceMount'
 > {}
-export function DrawerPortal(props: DrawerPortalProps) {
-  return <Dialog.Portal {...props} />
-}
+export const DrawerPortal = Dialog.Portal as React.FC<DrawerPortalProps>
 
 export interface DrawerCloseProps extends React.ComponentPropsWithRef<
   typeof Dialog.Close

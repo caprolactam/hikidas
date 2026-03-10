@@ -10,12 +10,14 @@ import {
   type DialogDescriptionProps,
   type DialogCloseProps,
 } from '@base-ui/react/dialog'
+import { NestingDrawerProvider, DrawerProvider } from '../../provider'
 import {
-  DrawerProvider,
   useDrawerContent,
   useDrawerOverlay,
   type DrawerRootAPI,
-} from '../../react/drawer-adapter'
+} from '../../use-drawer'
+
+export { NestingDrawerProvider }
 
 export interface DrawerRootProps<Payload = unknown>
   extends
@@ -67,25 +69,8 @@ export function DrawerBackdrop({ ref, ...props }: DrawerBackdropProps) {
 
 interface DrawerPopupProps extends DialogPopupProps {}
 
-export function DrawerPopup({
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
-  onContextMenu,
-  style,
-  ref,
-  ...props
-}: DrawerPopupProps) {
-  const contentProps = useDrawerContent({
-    ref,
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    onPointerCancel,
-    onContextMenu,
-    style,
-  })
+export function DrawerPopup({ ref, ...props }: DrawerPopupProps) {
+  const contentProps = useDrawerContent(ref)
 
   return <Dialog.Popup {...props} {...contentProps} />
 }
@@ -97,9 +82,17 @@ export interface DrawerPortalProps extends Omit<
   DialogPortalProps,
   'keepMounted'
 > {}
-export function DrawerPortal(props: DrawerPortalProps) {
-  return <Dialog.Portal {...props} />
+export interface DrawerPortalState {}
+export interface DrawerPortal {
+  (
+    componentProps: DrawerPortalProps & React.RefAttributes<HTMLDivElement>,
+  ): React.JSX.Element | null
 }
+export namespace DrawerPortal {
+  export type Props = DrawerPortalProps
+  export type State = DrawerPortalState
+}
+export const DrawerPortal = Dialog.Portal as DrawerPortal
 
 export interface DrawerViewportProps extends DialogViewportProps {}
 export const DrawerViewport = Dialog.Viewport
