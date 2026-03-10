@@ -40,59 +40,6 @@ function NestedContent({
 
 // ── Stories ───────────────────────────────────────────────────
 
-export const Basic: Story = {
-  name: 'Basic (2 levels)',
-  render: () => (
-    <div className='h-screen w-full bg-slate-50 p-6'>
-      <NestingDrawerProvider>
-        <Drawer.Root>
-          <Drawer.Trigger className={triggerClassName}>
-            Open Parent Drawer
-          </Drawer.Trigger>
-          <Drawer.Portal>
-            <Overlay />
-            <NestedContent level={0}>
-              <DummyHandle />
-              <div className='space-y-4 px-6 pb-6'>
-                <Title>Parent Drawer</Title>
-                <Description>
-                  Open a child drawer to see the parent scale down.
-                </Description>
-
-                {/* Child drawer nested inside parent */}
-                <Drawer.Root>
-                  <Drawer.Trigger className={triggerClassName}>
-                    Open Child Drawer
-                  </Drawer.Trigger>
-                  <Drawer.Portal>
-                    <NestedContent level={1}>
-                      <DummyHandle />
-                      <div className='space-y-4 px-6 pb-6'>
-                        <Title>Child Drawer</Title>
-                        <Description>
-                          The parent drawer behind should be scaled down. Close
-                          this to see it scale back up.
-                        </Description>
-                        <Drawer.Close className={closeButtonClassName}>
-                          Close Child
-                        </Drawer.Close>
-                      </div>
-                    </NestedContent>
-                  </Drawer.Portal>
-                </Drawer.Root>
-
-                <Drawer.Close className={closeButtonClassName}>
-                  Close Parent
-                </Drawer.Close>
-              </div>
-            </NestedContent>
-          </Drawer.Portal>
-        </Drawer.Root>
-      </NestingDrawerProvider>
-    </div>
-  ),
-}
-
 export const ThreeLevels: Story = {
   name: 'Deep Nesting (3 levels)',
   render: () => (
@@ -168,93 +115,12 @@ export const ThreeLevels: Story = {
   ),
 }
 
-export const Controlled: Story = {
-  name: 'Controlled Nested',
-  render: () => {
-    const [parentOpen, setParentOpen] = useState(false)
-    const [childOpen, setChildOpen] = useState(false)
-
-    return (
-      <div className='h-screen w-full bg-slate-50 p-6 space-y-4'>
-        <NestingDrawerProvider>
-          <div className='flex gap-4 items-center'>
-            <button
-              type='button'
-              className={triggerClassName}
-              onClick={() => setParentOpen(true)}
-            >
-              Open Parent
-            </button>
-            <p className='text-sm text-slate-600'>
-              Parent: <strong>{parentOpen ? 'Open' : 'Closed'}</strong> | Child:{' '}
-              <strong>{childOpen ? 'Open' : 'Closed'}</strong>
-            </p>
-          </div>
-
-          <Drawer.Root open={parentOpen} onOpenChange={setParentOpen}>
-            <Drawer.Portal>
-              <Overlay />
-              <NestedContent level={0}>
-                <DummyHandle />
-                <div className='space-y-4 px-6 pb-6'>
-                  <Title>Parent Drawer (Controlled)</Title>
-                  <Description>
-                    Both drawers use controlled state. Open the child to see the
-                    nesting animation.
-                  </Description>
-
-                  <Drawer.Root open={childOpen} onOpenChange={setChildOpen}>
-                    <button
-                      type='button'
-                      className={triggerClassName}
-                      onClick={() => setChildOpen(true)}
-                    >
-                      Open Child
-                    </button>
-                    <Drawer.Portal>
-                      <NestedContent level={1}>
-                        <DummyHandle />
-                        <div className='space-y-4 px-6 pb-6'>
-                          <Title>Child Drawer (Controlled)</Title>
-                          <Description>
-                            Close via drag or button to see the parent scale
-                            back up.
-                          </Description>
-                          <button
-                            type='button'
-                            className={closeButtonClassName}
-                            onClick={() => setChildOpen(false)}
-                          >
-                            Close Child
-                          </button>
-                        </div>
-                      </NestedContent>
-                    </Drawer.Portal>
-                  </Drawer.Root>
-
-                  <button
-                    type='button'
-                    className={closeButtonClassName}
-                    onClick={() => setParentOpen(false)}
-                  >
-                    Close Parent
-                  </button>
-                </div>
-              </NestedContent>
-            </Drawer.Portal>
-          </Drawer.Root>
-        </NestingDrawerProvider>
-      </div>
-    )
-  },
-}
-
-export const WithoutRegistry: Story = {
-  name: 'Without DrawerRegistryProvider',
+export const WithoutProvider: Story = {
+  name: 'Without NestingDrawerProvider',
   render: () => (
     <div className='h-screen w-full bg-slate-50 p-6'>
       <p className='mb-4 text-sm text-slate-500'>
-        No DrawerRegistryProvider — nesting animation is disabled. Drawers work
+        No NestingDrawerProvider — nesting animation is disabled. Drawers work
         independently.
       </p>
       <Drawer.Root>
@@ -450,51 +316,76 @@ export const CloseParentFromChild: Story = {
   },
 }
 
-export const DifferentDirections: Story = {
-  name: 'Mixed Directions',
+export const Siblings: Story = {
+  name: 'Sibling Drawers',
   render: () => (
     <div className='h-screen w-full bg-slate-50 p-6'>
       <NestingDrawerProvider>
-        <Drawer.Root dismissalDirection='down'>
+        <Drawer.Root>
           <Drawer.Trigger className={triggerClassName}>
-            Open Bottom Drawer
+            Open Parent Drawer
           </Drawer.Trigger>
           <Drawer.Portal>
             <Overlay />
-            <Drawer.Content className="fixed bottom-0 inset-x-0 bg-white h-[75vh] rounded-t-3xl border border-slate-200 after:absolute after:inset-0 after:rounded-[inherit] after:bg-transparent after:pointer-events-none after:content-[''] after:transition-[background-color] after:duration-350 after:ease-[cubic-bezier(0.32,0.72,0,1)] aria-hidden:after:bg-black/5">
+            <NestedContent level={0}>
               <DummyHandle />
               <div className='space-y-4 px-6 pb-6'>
-                <Title>Bottom Drawer (Parent)</Title>
+                <Title>Parent Drawer</Title>
                 <Description>
-                  Parent slides from bottom. Child slides from right.
+                  Two sibling child drawers share the same parent. Close one and
+                  open the other — the parent scale animation should transition
+                  correctly between siblings.
                 </Description>
 
-                <Drawer.Root dismissalDirection='right'>
-                  <Drawer.Trigger className={triggerClassName}>
-                    Open Right Drawer
-                  </Drawer.Trigger>
-                  <Drawer.Portal>
-                    <Drawer.Content className='fixed top-0 right-0 bottom-0 w-[80vw] max-w-md bg-white rounded-l-3xl border border-slate-200'>
-                      <DummyHandle />
-                      <div className='space-y-4 px-6 pt-8 pb-6'>
-                        <Title>Right Drawer (Child)</Title>
-                        <Description>
-                          The parent should scale down when this opens,
-                          regardless of the different dismissal direction.
-                        </Description>
-                        <Drawer.Close className={closeButtonClassName}>
-                          Close Child
-                        </Drawer.Close>
-                      </div>
-                    </Drawer.Content>
-                  </Drawer.Portal>
-                </Drawer.Root>
+                <div className='flex gap-3'>
+                  <Drawer.Root>
+                    <Drawer.Trigger className={triggerClassName}>
+                      Open Child A
+                    </Drawer.Trigger>
+                    <Drawer.Portal>
+                      <NestedContent level={1}>
+                        <DummyHandle />
+                        <div className='space-y-4 px-6 pb-6'>
+                          <Title>Child A</Title>
+                          <Description>
+                            Close this drawer, then open Child B from the
+                            parent.
+                          </Description>
+                          <Drawer.Close className={closeButtonClassName}>
+                            Close Child A
+                          </Drawer.Close>
+                        </div>
+                      </NestedContent>
+                    </Drawer.Portal>
+                  </Drawer.Root>
+
+                  <Drawer.Root>
+                    <Drawer.Trigger className={triggerClassName}>
+                      Open Child B
+                    </Drawer.Trigger>
+                    <Drawer.Portal>
+                      <NestedContent level={1}>
+                        <DummyHandle />
+                        <div className='space-y-4 px-6 pb-6'>
+                          <Title>Child B</Title>
+                          <Description>
+                            Close this drawer, then open Child A from the
+                            parent.
+                          </Description>
+                          <Drawer.Close className={closeButtonClassName}>
+                            Close Child B
+                          </Drawer.Close>
+                        </div>
+                      </NestedContent>
+                    </Drawer.Portal>
+                  </Drawer.Root>
+                </div>
 
                 <Drawer.Close className={closeButtonClassName}>
                   Close Parent
                 </Drawer.Close>
               </div>
-            </Drawer.Content>
+            </NestedContent>
           </Drawer.Portal>
         </Drawer.Root>
       </NestingDrawerProvider>
