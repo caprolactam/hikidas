@@ -1,6 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { Drawer, NestingDrawerProvider } from '../../src/react/adapters/headlessui'
+import {
+  Drawer,
+  NestingDrawerProvider,
+} from '../../src/react/adapters/headlessui'
 
 export default {
   title: 'Adapters/Headless UI',
@@ -81,7 +84,10 @@ export const SnapPoints: Story = {
             data-testid='drawer'
             className='fixed bottom-0 inset-x-0 bg-white h-screen rounded-t-3xl border border-slate-200'
           >
-            <div className='flex justify-center pt-3 pb-2' data-testid='drag-handle'>
+            <div
+              className='flex justify-center pt-3 pb-2'
+              data-testid='drag-handle'
+            >
               <div className='h-1 w-12 rounded-full bg-slate-300' />
             </div>
             <div className='space-y-4 px-6 pb-6'>
@@ -124,7 +130,10 @@ export const Nested: Story = {
               data-testid='drawer'
               className='fixed bottom-0 inset-x-0 bg-white h-[75vh] rounded-t-3xl border border-slate-200 after:absolute after:inset-0 after:rounded-[inherit] after:bg-transparent after:pointer-events-none after:transition-[background-color] after:duration-200 after:ease-[cubic-bezier(0.32,0.72,0,1)] data-nested-drawer-open:after:bg-black/5'
             >
-              <div className='flex justify-center pt-3 pb-2' data-testid='drag-handle'>
+              <div
+                className='flex justify-center pt-3 pb-2'
+                data-testid='drag-handle'
+              >
                 <div className='h-1 w-12 rounded-full bg-slate-300' />
               </div>
               <div className='space-y-4 px-6 pb-6'>
@@ -139,12 +148,18 @@ export const Nested: Story = {
                 >
                   Open Child
                 </button>
-                <Drawer.Root open={childOpen} onClose={() => setChildOpen(false)}>
+                <Drawer.Root
+                  open={childOpen}
+                  onClose={() => setChildOpen(false)}
+                >
                   <Drawer.Panel
                     data-testid='drawer'
                     className='fixed bottom-0 inset-x-0 bg-white h-[65vh] rounded-t-3xl border border-slate-200'
                   >
-                    <div className='flex justify-center pt-3 pb-2' data-testid='drag-handle'>
+                    <div
+                      className='flex justify-center pt-3 pb-2'
+                      data-testid='drag-handle'
+                    >
                       <div className='h-1 w-12 rounded-full bg-slate-300' />
                     </div>
                     <div className='space-y-4 px-6 pb-6'>

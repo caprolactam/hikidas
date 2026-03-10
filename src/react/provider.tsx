@@ -70,9 +70,7 @@ export function NestingDrawerProvider({
     [drawerRegistry, connector],
   )
 
-  return (
-    <NestingContext value={nestingValue}>{children}</NestingContext>
-  )
+  return <NestingContext value={nestingValue}>{children}</NestingContext>
 }
 
 interface DrawerProviderAPI {

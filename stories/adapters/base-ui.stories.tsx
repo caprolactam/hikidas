@@ -68,7 +68,10 @@ export const SnapPoints: Story = {
           <Drawer.Backdrop className='fixed inset-0 bg-black/50' />
           <Drawer.Viewport className='fixed inset-0 pointer-events-none flex items-end justify-center'>
             <Drawer.Popup className='pointer-events-auto bg-white w-full h-screen rounded-t-3xl border border-slate-200'>
-              <div className='flex justify-center pt-3 pb-2' data-testid='drag-handle'>
+              <div
+                className='flex justify-center pt-3 pb-2'
+                data-testid='drag-handle'
+              >
                 <div className='h-1 w-12 rounded-full bg-slate-300' />
               </div>
               <div className='space-y-4 px-6 pb-6'>
@@ -103,7 +106,10 @@ export const Nested: Story = {
             <Drawer.Backdrop className='fixed inset-0 bg-black/50' />
             <Drawer.Viewport className='fixed inset-0 pointer-events-none flex items-end justify-center'>
               <Drawer.Popup className='pointer-events-auto bg-white w-full h-[75vh] rounded-t-3xl border border-slate-200 after:absolute after:inset-0 after:rounded-[inherit] after:bg-transparent after:pointer-events-none after:transition-[background-color] after:duration-200 after:ease-[cubic-bezier(0.32,0.72,0,1)] data-nested-drawer-open:after:bg-black/5'>
-                <div className='flex justify-center pt-3 pb-2' data-testid='drag-handle'>
+                <div
+                  className='flex justify-center pt-3 pb-2'
+                  data-testid='drag-handle'
+                >
                   <div className='h-1 w-12 rounded-full bg-slate-300' />
                 </div>
                 <div className='space-y-4 px-6 pb-6'>
@@ -118,7 +124,10 @@ export const Nested: Story = {
                     <Drawer.Portal>
                       <Drawer.Viewport className='fixed inset-0 pointer-events-none flex items-end justify-center'>
                         <Drawer.Popup className='pointer-events-auto bg-white w-full h-[65vh] rounded-t-3xl border border-slate-200'>
-                          <div className='flex justify-center pt-3 pb-2' data-testid='drag-handle'>
+                          <div
+                            className='flex justify-center pt-3 pb-2'
+                            data-testid='drag-handle'
+                          >
                             <div className='h-1 w-12 rounded-full bg-slate-300' />
                           </div>
                           <div className='space-y-4 px-6 pb-6'>
