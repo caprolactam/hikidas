@@ -79,11 +79,10 @@ export interface DrawerPanelProps extends Omit<
   'transition'
 > {}
 
-export function DrawerPanel({ style, ref, ...props }: DrawerPanelProps) {
-  const contentProps = useDrawerContent({
-    ref: ref as React.Ref<HTMLDivElement> | undefined,
-    style,
-  })
+export function DrawerPanel({ ref, ...props }: DrawerPanelProps) {
+  const contentProps = useDrawerContent(
+    ref as React.Ref<HTMLDivElement> | undefined,
+  )
 
   return <DialogPanel {...props} {...contentProps} />
 }

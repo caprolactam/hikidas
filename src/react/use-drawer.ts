@@ -300,13 +300,7 @@ export function useDrawerOverlay(externalRef?: React.Ref<HTMLDivElement>) {
   }
 }
 
-export function useDrawerContent(props: {
-  ref?: React.Ref<HTMLDivElement>
-  style?: React.CSSProperties
-}): {
-  ref: React.Ref<HTMLDivElement>
-  style: React.CSSProperties
-} {
+export function useDrawerContent(externalRef?: React.Ref<HTMLDivElement>) {
   const { id, machine, contentRef, overlayRef, nestingConnector } =
     useDrawerContext()
 
@@ -346,11 +340,10 @@ export function useDrawerContent(props: {
     }
   }, [nestingConnector, id, contentRef, overlayRef, machine])
 
-  const ref = useMergeRefs([props.ref, contentRef])
+  const ref = useMergeRefs([externalRef, contentRef])
 
   return {
     ref,
-    style: { touchAction: 'none', ...props.style },
   }
 }
 

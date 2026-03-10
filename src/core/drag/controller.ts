@@ -90,6 +90,8 @@ export class DragController {
     this.#element.addEventListener('contextmenu', this.#handleContextMenu, {
       signal,
     })
+
+    this.#element.style.touchAction = 'none'
   }
 
   get element(): HTMLElement {
@@ -105,6 +107,8 @@ export class DragController {
       this.#pointerCapture.release()
     }
     this.#abortController.abort()
+
+    this.#element.style.touchAction = ''
   }
 
   #endDragSession(): void {
