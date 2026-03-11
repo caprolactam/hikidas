@@ -1,9 +1,6 @@
+import { Drawer, NestingDrawerProvider } from '@hikidas/react/headlessui'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import {
-  Drawer,
-  NestingDrawerProvider,
-} from '../../packages/react/src/adapters/headlessui'
 
 export default {
   title: 'Adapters/Headless UI',

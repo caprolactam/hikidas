@@ -1,9 +1,6 @@
+import { Drawer, NestingDrawerProvider } from '@hikidas/react/radix-ui'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import {
-  Drawer,
-  NestingDrawerProvider,
-} from '../../packages/react/src/adapters/radix-ui'
 
 export default {
   title: 'Adapters/Radix UI',

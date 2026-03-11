@@ -1,4 +1,6 @@
-import { Drawer } from '../packages/react/src/adapters/radix-ui'
+import { Drawer, NestingDrawerProvider } from '@hikidas/react/radix-ui'
+
+export { Drawer, NestingDrawerProvider }
 
 export const Root = Drawer.Root
 

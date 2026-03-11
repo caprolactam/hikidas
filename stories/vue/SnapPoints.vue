@@ -8,7 +8,7 @@ import {
   DrawerClose,
   DrawerTitle,
   DrawerDescription,
-} from '../../packages/vue/src/adapters/reka-ui'
+} from '@hikidas/vue/reka-ui'
 </script>
 
 <template>
