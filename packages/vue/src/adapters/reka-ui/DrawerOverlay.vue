@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { DialogOverlay } from 'reka-ui'
+import { DialogOverlay, useForwardExpose } from 'reka-ui'
 import { useDrawerOverlay } from '../../composables'
 
 defineOptions({
   inheritAttrs: false,
 })
 
-const { setOverlayRef } = useDrawerOverlay()
+const { forwardRef, currentElement } = useForwardExpose()
+useDrawerOverlay(currentElement)
 </script>
 
 <template>
-  <DialogOverlay v-bind="$attrs" :ref="setOverlayRef" force-mount />
+  <DialogOverlay v-bind="$attrs" :ref="forwardRef" force-mount />
 </template>

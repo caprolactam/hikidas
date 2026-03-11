@@ -1,16 +1,4 @@
 import {
-  ref,
-  shallowRef,
-  watch,
-  onBeforeUnmount,
-  onMounted,
-  provide,
-  inject,
-  useId,
-  type ShallowRef,
-  type ComponentPublicInstance,
-} from 'vue'
-import {
   DrawerMachine,
   Phase,
   isOpenPhase,
@@ -19,6 +7,17 @@ import {
   setupOverlayAnimation,
   type DismissalDirection,
 } from '@hikidas/core'
+import {
+  ref,
+  shallowRef,
+  watch,
+  onBeforeUnmount,
+  provide,
+  inject,
+  useId,
+  type Ref,
+  type ShallowRef,
+} from 'vue'
 import {
   type DrawerContextValue,
   useDrawerContext,
@@ -73,12 +72,13 @@ export function useDrawerRoot(props: DrawerRootAPI, emit: DrawerRootEmit) {
   const parentDrawerId = useParentDrawerId()
   const nesting = inject(NestingKey, null)
 
-  const { state: desiredOpen, setState: setDesiredOpen } =
-    useControllableState({
+  const { state: desiredOpen, setState: setDesiredOpen } = useControllableState(
+    {
       value: () => props.open,
       defaultValue: !!props.defaultOpen,
       onChange: (value) => emit('update:open', value),
-    })
+    },
+  )
 
   const initialSnapPoints = props.snapPoints
   const { state: desiredSnapPointIndex, setState: setDesiredSnapPointIndex } =
@@ -182,6 +182,7 @@ export function useDrawerRoot(props: DrawerRootAPI, emit: DrawerRootEmit) {
   const contextValue: DrawerContextValue = {
     id,
     machine,
+    shouldMount: () => isOpenPhase(phase.value),
     contentRef,
     overlayRef,
     nestingConnector,
@@ -195,89 +196,79 @@ export function useDrawerRoot(props: DrawerRootAPI, emit: DrawerRootEmit) {
   }
 }
 
-/** @internal */
-export function useDrawerOverlay(): {
-  setOverlayRef: (instance: Element | ComponentPublicInstance | null) => void
-} {
+/**
+ * Sets up overlay phase animation, driven by reka-ui's `useForwardExpose().currentElement`.
+ * @internal
+ */
+export function useDrawerOverlay(
+  elementRef: Readonly<Ref<HTMLElement | undefined>>,
+): void {
   const { machine, overlayRef } = useDrawerContext()
 
-  onMounted(() => {
-    if (!overlayRef.value) return
-    const cleanup = setupOverlayAnimation({
-      machine,
-      element: overlayRef.value,
-    })
-    if (cleanup) onBeforeUnmount(cleanup)
-  })
-
-  const setOverlayRef = (
-    instance: Element | ComponentPublicInstance | null,
-  ) => {
-    overlayRef.value = resolveElement(instance)
-  }
-
-  return { setOverlayRef }
+  watch(
+    elementRef,
+    (el, _old, onCleanup) => {
+      console.log('Overlay element changed:', el)
+      overlayRef.value = el ?? null
+      if (!el) return
+      const cleanup = setupOverlayAnimation({ machine, element: el })
+      onCleanup(cleanup)
+    },
+    { flush: 'post' },
+  )
 }
 
-/** @internal */
-export function useDrawerContent(): {
-  setContentRef: (instance: Element | ComponentPublicInstance | null) => void
-} {
+/**
+ * Sets up content animation + drag controller, driven by reka-ui's `useForwardExpose().currentElement`.
+ * @internal
+ */
+export function useDrawerContent(
+  elementRef: Readonly<Ref<HTMLElement | undefined>>,
+): void {
   const { id, machine, contentRef, overlayRef, nestingConnector } =
     useDrawerContext()
 
-  onMounted(() => {
-    if (!contentRef.value) return
+  watch(
+    elementRef,
+    (el, _old, onCleanup) => {
+      contentRef.value = el ?? null
+      if (!el) return
 
-    const cleanups: Array<() => void> = []
+      const cleanups: Array<() => void> = []
 
-    const cleanupAnimation = setupContentAnimation({
-      machine,
-      element: contentRef.value,
-    })
-    if (cleanupAnimation) cleanups.push(cleanupAnimation)
-
-    const controller = new DragController({
-      element: contentRef.value,
-      overlayElement: overlayRef.value,
-      machine,
-    })
-    cleanups.push(controller.dispose.bind(controller))
-
-    if (nestingConnector) {
-      const cleanupNesting = nestingConnector({
-        id,
-        element: contentRef.value,
-        controller,
+      const cleanupAnimation = setupContentAnimation({
+        machine,
+        element: el,
       })
-      cleanups.push(cleanupNesting)
-    }
+      if (cleanupAnimation) cleanups.push(cleanupAnimation)
 
-    onBeforeUnmount(() => {
-      for (const cleanup of cleanups) {
-        cleanup()
+      const controller = new DragController({
+        element: el,
+        overlayElement: overlayRef.value,
+        machine,
+      })
+      cleanups.push(controller.dispose.bind(controller))
+
+      if (nestingConnector) {
+        const cleanupNesting = nestingConnector({
+          id,
+          element: el,
+          controller,
+        })
+        cleanups.push(cleanupNesting)
       }
-    })
-  })
 
-  const setContentRef = (
-    instance: Element | ComponentPublicInstance | null,
-  ) => {
-    contentRef.value = resolveElement(instance)
-  }
-
-  return { setContentRef }
+      onCleanup(() => {
+        for (const cleanup of cleanups) {
+          cleanup()
+        }
+      })
+    },
+    { flush: 'post' },
+  )
 }
 
 // ── Utilities ────────────
-
-function resolveElement(
-  instance: Element | ComponentPublicInstance | null,
-): HTMLElement | null {
-  if (!instance) return null
-  if (instance instanceof Element) return instance as HTMLElement
-  return (instance as ComponentPublicInstance).$el as HTMLElement | null
-}
 
 interface ControllableStateOptions<T> {
   value: () => T | undefined

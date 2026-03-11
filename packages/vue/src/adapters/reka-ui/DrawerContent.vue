@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import { DialogContent } from 'reka-ui'
+import { DialogContent, useForwardExpose } from 'reka-ui'
 import { useDrawerContent } from '../../composables'
 
 defineOptions({
   inheritAttrs: false,
 })
 
-const { setContentRef } = useDrawerContent()
+const { forwardRef, currentElement } = useForwardExpose()
+useDrawerContent(currentElement)
 </script>
 
 <template>
-  <DialogContent v-bind="$attrs" :ref="setContentRef" force-mount>
+  <DialogContent v-bind="$attrs" :ref="forwardRef" force-mount>
     <slot />
   </DialogContent>
 </template>

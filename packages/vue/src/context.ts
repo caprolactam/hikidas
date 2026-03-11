@@ -33,6 +33,8 @@ export const NestingKey: InjectionKey<NestingContextValue> =
 export interface DrawerContextValue {
   id: DrawerId
   machine: DrawerMachine
+  /** Whether Portal children should be mounted (true for all phases except Closed). */
+  shouldMount: () => boolean
   contentRef: ShallowRef<HTMLElement | null>
   overlayRef: ShallowRef<HTMLElement | null>
   nestingConnector: NestingConnector | null
