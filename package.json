@@ -11,7 +11,6 @@
     "storybook:test": "vitest --project=storybook",
     "storybook:build": "storybook build",
     "storybook:deploy-build": "cross-env STORYBOOK_DEPLOY=1 pnpm storybook:build && cross-env STORYBOOK_VUE=1 pnpm storybook:build -o storybook-static/vue",
-    "storybook:build:vue": "cross-env STORYBOOK_VUE=1 storybook build --output-dir storybook-static/vue",
     "storybook:preview": "vite preview --outDir storybook-static",
     "e2e": "npx playwright test"
   },
