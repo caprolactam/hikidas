@@ -1,0 +1,53 @@
+@startuml drawer
+hide empty description
+
+[*] --> Closed
+Closed --> Mounted : request open
+
+state Mounted {
+  [*] --> Opening
+
+  Opening : entry / start open animation
+  Opening --> Closing : request close
+  Opening --> Open : open animation completes
+
+  state Open {
+    [*] --> Idle
+    Idle --> Tracking : start moving pointer
+    Tracking --> Idle : cancel tracking
+    Tracking --> Dragging : exceed distance threshold
+    Dragging --> Settling : cancel dragging
+
+    state "evaluate drag end" as Evaluate <<choice>>
+  
+    Dragging --> Evaluate : end drag
+    Evaluate --> [*] : [should close]
+    note on link
+      Drawer should close when both conditions are met:
+      1. Either threshold is exceeded:
+        - Drag velocity exceeds threshold
+        - Drag distance exceeds threshold
+      2. No snap point exists further in the closing direction
+    end note
+
+    Evaluate --> Settling : [else]
+
+    Settling : entry / start settle animation
+    Settling --> Idle : settle animation completes
+  }
+
+  note top of Open
+    User can interact with the drawer.
+  end note
+
+  Open --> Closing : request close
+  /' resulting from drag interaction '/
+  Open --> Closing 
+
+  Closing : entry / start close animation
+  Closing --> [*] : close animation completes
+}
+
+Mounted --> Closed
+
+@enduml
