@@ -15,6 +15,6 @@ const { shouldMount } = useDrawerContext()
 
 <template>
   <DialogPortal v-bind="$props">
-    <slot v-if="shouldMount()" />
+    <slot v-if="shouldMount" />
   </DialogPortal>
 </template>

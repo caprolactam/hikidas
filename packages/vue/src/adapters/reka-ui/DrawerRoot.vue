@@ -65,7 +65,7 @@ if (__DEV__) {
 
 <template>
   <DialogRoot
-    :open="isOpen()"
+    :open="isOpen"
     :modal="$props.modal"
     @update:open="handleIsOpenChange"
   >

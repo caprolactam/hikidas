@@ -8,7 +8,7 @@ import {
   type DismissalDirection,
 } from '@hikidas/core'
 import {
-  ref,
+  computed,
   shallowRef,
   watch,
   onBeforeUnmount,
@@ -61,9 +61,9 @@ export interface DrawerRootAPI {
   snapPoint?: number
 }
 
-type DrawerRootEmit = {
-  (e: 'update:open', value: boolean): void
-  (e: 'update:snapPoint', value: number): void
+export type DrawerRootEmit = {
+  (e: 'update:open', open: boolean): void
+  (e: 'update:snapPoint', index: number): void
 }
 
 /** @internal */
@@ -72,27 +72,22 @@ export function useDrawerRoot(props: DrawerRootAPI, emit: DrawerRootEmit) {
   const parentDrawerId = useParentDrawerId()
   const nesting = inject(NestingKey, null)
 
-  const { state: desiredOpen, setState: setDesiredOpen } = useControllableState(
-    {
-      value: () => props.open,
-      defaultValue: !!props.defaultOpen,
-      onChange: (value) => emit('update:open', value),
-    },
+  const desiredOpen = useVModel(
+    () => props.open,
+    (open) => emit('update:open', open),
+    !!props.defaultOpen,
   )
 
   const initialSnapPoints = props.snapPoints
-  const { state: desiredSnapPointIndex, setState: setDesiredSnapPointIndex } =
-    useControllableState<number | undefined>({
-      value: () => props.snapPoint,
-      defaultValue:
-        initialSnapPoints && initialSnapPoints.length > 0
-          ? (props.defaultSnapPoint ?? initialSnapPoints.length - 1)
-          : undefined,
-      onChange: (index) => {
-        if (index === undefined) return
-        emit('update:snapPoint', index)
-      },
-    })
+  const desiredSnapPointIndex = useVModel(
+    () => props.snapPoint,
+    (index) => {
+      if (index !== undefined) emit('update:snapPoint', index)
+    },
+    initialSnapPoints && initialSnapPoints.length > 0
+      ? (props.defaultSnapPoint ?? initialSnapPoints.length - 1)
+      : undefined,
+  )
 
   const machine = new DrawerMachine(
     desiredOpen.value,
@@ -106,7 +101,6 @@ export function useDrawerRoot(props: DrawerRootAPI, emit: DrawerRootEmit) {
     },
   )
 
-  // Register with DrawerRegistry only when NestingDrawerProvider is present
   if (nesting) {
     const unregister = nesting.registry.register({
       id,
@@ -116,13 +110,12 @@ export function useDrawerRoot(props: DrawerRootAPI, emit: DrawerRootEmit) {
     onBeforeUnmount(unregister)
   }
 
-  // Update config when props change
   watch(
-    () => [props.dismissalDirection, props.disableDragDismiss] as const,
+    [() => props.dismissalDirection, () => props.disableDragDismiss],
     ([dismissalDirection, disableDragDismiss]) => {
       machine.updateConfig({
-        dismissalDirection: dismissalDirection ?? 'down',
-        disableDragDismiss: disableDragDismiss ?? false,
+        dismissalDirection,
+        disableDragDismiss,
       })
     },
   )
@@ -138,9 +131,9 @@ export function useDrawerRoot(props: DrawerRootAPI, emit: DrawerRootEmit) {
 
   const unsubPhase = machine.subscribePhaseChange((nextPhase) => {
     if (nextPhase === Phase.Closed) {
-      setDesiredOpen(false)
+      desiredOpen.value = false
     } else if (nextPhase === Phase.Idle) {
-      setDesiredOpen(true)
+      desiredOpen.value = true
     }
   })
   onBeforeUnmount(unsubPhase)
@@ -155,24 +148,23 @@ export function useDrawerRoot(props: DrawerRootAPI, emit: DrawerRootEmit) {
 
   const unsubSnap = machine.subscribeSnapModeChange((nextSnapMode) => {
     if (nextSnapMode.type === 'binary') {
-      setDesiredSnapPointIndex(undefined)
+      desiredSnapPointIndex.value = undefined
     } else {
-      setDesiredSnapPointIndex(nextSnapMode.activeIndex)
+      desiredSnapPointIndex.value = nextSnapMode.activeIndex
     }
   })
   onBeforeUnmount(unsubSnap)
 
-  // ── Reactive phase tracking ────────────
   const phase = shallowRef(machine.snapshot.phase)
   const unsubPhaseTracking = machine.subscribePhaseChange((nextPhase) => {
     phase.value = nextPhase
   })
   onBeforeUnmount(unsubPhaseTracking)
 
-  const isOpen = () => isOpenPhase(phase.value)
+  const isOpen = computed(() => isOpenPhase(phase.value))
 
   const handleIsOpenChange = (nextIsOpen: boolean) => {
-    setDesiredOpen(nextIsOpen)
+    desiredOpen.value = nextIsOpen
   }
 
   const contentRef = shallowRef<HTMLElement | null>(null)
@@ -182,7 +174,7 @@ export function useDrawerRoot(props: DrawerRootAPI, emit: DrawerRootEmit) {
   const contextValue: DrawerContextValue = {
     id,
     machine,
-    shouldMount: () => isOpenPhase(phase.value),
+    shouldMount: computed(() => isOpenPhase(phase.value)),
     contentRef,
     overlayRef,
     nestingConnector,
@@ -196,10 +188,7 @@ export function useDrawerRoot(props: DrawerRootAPI, emit: DrawerRootEmit) {
   }
 }
 
-/**
- * Sets up overlay phase animation, driven by reka-ui's `useForwardExpose().currentElement`.
- * @internal
- */
+/** @internal */
 export function useDrawerOverlay(
   elementRef: Readonly<Ref<HTMLElement | undefined>>,
 ): void {
@@ -218,10 +207,7 @@ export function useDrawerOverlay(
   )
 }
 
-/**
- * Sets up content animation + drag controller, driven by reka-ui's `useForwardExpose().currentElement`.
- * @internal
- */
+/** @internal */
 export function useDrawerContent(
   elementRef: Readonly<Ref<HTMLElement | undefined>>,
 ): void {
@@ -268,55 +254,24 @@ export function useDrawerContent(
   )
 }
 
-// ── Utilities ────────────
+function useVModel<T>(
+  propValue: () => T | undefined,
+  onUpdate: (value: T) => void,
+  defaultValue: T,
+): ShallowRef<T> {
+  const internalValue = shallowRef(propValue() ?? defaultValue) as ShallowRef<T>
 
-interface ControllableStateOptions<T> {
-  value: () => T | undefined
-  defaultValue: T
-  onChange?: (value: T) => void
-}
-
-function useControllableState<T>({
-  value: valueProp,
-  defaultValue,
-  onChange,
-}: ControllableStateOptions<T>): {
-  state: ShallowRef<T>
-  setState: (next: T) => void
-} {
-  const internalValue = ref(defaultValue) as ShallowRef<T>
-  let prevValue = internalValue.value
-
-  const setState = (next: T) => {
-    const controlledValue = valueProp()
-    if (controlledValue !== undefined) {
-      // Controlled mode: notify parent
-      if (next !== controlledValue) {
-        onChange?.(next)
-      }
-    } else {
-      // Uncontrolled mode: update internal state
-      internalValue.value = next
-    }
-  }
-
-  // Sync controlled prop → internal value
-  watch(valueProp, (newVal) => {
-    if (newVal !== undefined) {
-      internalValue.value = newVal
+  watch(propValue, (val) => {
+    if (val !== undefined) {
+      internalValue.value = val
     }
   })
 
-  // Emit onChange for uncontrolled value changes
-  watch(internalValue, (newVal) => {
-    const controlledValue = valueProp()
-    if (controlledValue !== undefined) return
-
-    if (prevValue !== newVal) {
-      onChange?.(newVal)
-      prevValue = newVal
+  watch(internalValue, (val) => {
+    if (val !== propValue()) {
+      onUpdate(val)
     }
   })
 
-  return { state: internalValue, setState }
+  return internalValue
 }

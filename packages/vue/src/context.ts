@@ -1,4 +1,4 @@
-import { inject, type InjectionKey, type ShallowRef } from 'vue'
+import { inject, type ComputedRef, type InjectionKey, type ShallowRef } from 'vue'
 import type {
   DrawerMachine,
   DrawerId,
@@ -34,7 +34,7 @@ export interface DrawerContextValue {
   id: DrawerId
   machine: DrawerMachine
   /** Whether Portal children should be mounted (true for all phases except Closed). */
-  shouldMount: () => boolean
+  shouldMount: ComputedRef<boolean>
   contentRef: ShallowRef<HTMLElement | null>
   overlayRef: ShallowRef<HTMLElement | null>
   nestingConnector: NestingConnector | null
