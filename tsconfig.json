@@ -21,6 +21,11 @@
       "@hikidas/vue/*": ["./packages/vue/src/adapters/*"]
     }
   },
-  "include": ["packages/core/src", "packages/react/src", "packages/vue/src", "stories"],
+  "include": [
+    "packages/core/src",
+    "packages/react/src",
+    "packages/vue/src",
+    "stories"
+  ],
   "exclude": ["node_modules", "dist"]
 }

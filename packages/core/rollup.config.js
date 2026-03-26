@@ -28,7 +28,4 @@ function createConfig(env) {
 }
 
 /** @type { import('rollup').RollupOptions[] } */
-export default [
-  createConfig('development'),
-  createConfig('production'),
-]
+export default [createConfig('development'), createConfig('production')]
