@@ -1,36 +1,23 @@
+<script lang="ts">
+import type { DialogRootProps } from 'reka-ui'
+import type { DrawerRootAPI, DrawerRootEmit } from '../../composables'
+
+export interface DrawerRootProps
+  extends Omit<DialogRootProps, 'open' | 'defaultOpen'>, DrawerRootAPI {}
+
+export type { DrawerRootEmit }
+</script>
+
 <script setup lang="ts">
 import { watch } from 'vue'
-import { DialogRoot, type DialogRootProps } from 'reka-ui'
-import { useDrawerRoot, type DrawerRootAPI } from '../../composables'
-import type { DismissalDirection } from '@hikidas/core'
-
-export interface DrawerRootProps extends Omit<
-  DialogRootProps,
-  'open' | 'defaultOpen'
-> {
-  defaultOpen?: boolean
-  open?: boolean
-  dismissalDirection?: DismissalDirection
-  disableDragDismiss?: boolean
-  snapPoints?: number[]
-  defaultSnapPoint?: number
-  snapPoint?: number
-}
+import { DialogRoot } from 'reka-ui'
+import { useDrawerRoot } from '../../composables'
 
 const props = withDefaults(defineProps<DrawerRootProps>(), {
-  open: undefined,
-  dismissalDirection: 'down',
-  disableDragDismiss: false,
-  snapPoints: undefined,
-  defaultSnapPoint: undefined,
-  snapPoint: undefined,
   modal: true,
 })
 
-const emit = defineEmits<{
-  'update:open': [value: boolean]
-  'update:snapPoint': [value: number]
-}>()
+const emit = defineEmits<DrawerRootEmit>()
 
 const { isOpen, handleIsOpenChange } = useDrawerRoot(props, emit)
 
@@ -66,9 +53,11 @@ if (__DEV__) {
 <template>
   <DialogRoot
     :open="isOpen"
-    :modal="$props.modal"
+    :modal="props.modal"
     @update:open="handleIsOpenChange"
   >
-    <slot />
+    <template #default="slotProps">
+      <slot v-bind="slotProps" />
+    </template>
   </DialogRoot>
 </template>

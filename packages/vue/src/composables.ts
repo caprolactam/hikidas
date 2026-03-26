@@ -156,7 +156,7 @@ export function useDrawerRoot(props: DrawerRootAPI, emit: DrawerRootEmit) {
   })
   onUnmounted(unsubSnap)
 
-  // use shallowRef for external state
+  // use shallowRef for external state integration
   // https://vuejs.org/guide/extras/reactivity-in-depth.html#integration-with-external-state-systems
   const phase = shallowRef(machine.snapshot.phase)
   const unsubPhaseTracking = machine.subscribePhaseChange((nextPhase) => {
@@ -227,7 +227,7 @@ export function useDrawerContent(
         machine,
         element: el,
       })
-      if (cleanupAnimation) cleanups.push(cleanupAnimation)
+      cleanups.push(cleanupAnimation)
 
       const controller = new DragController({
         element: el,

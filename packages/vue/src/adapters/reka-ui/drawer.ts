@@ -23,7 +23,7 @@ export {
   NestingDrawerProvider,
 }
 
-export type { DrawerRootProps } from './DrawerRoot.vue'
+export type { DrawerRootProps, DrawerRootEmit } from './DrawerRoot.vue'
 export type { DrawerPortalProps } from './DrawerPortal.vue'
 export type { DrawerOverlayProps } from './DrawerOverlay.vue'
 export type {
