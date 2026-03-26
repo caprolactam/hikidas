@@ -1,10 +1,7 @@
 <script lang="ts">
 import type { DialogOverlayProps } from 'reka-ui'
 
-export interface DrawerOverlayProps extends Omit<
-  DialogOverlayProps,
-  'forceMount'
-> {}
+export type DrawerOverlayProps = Omit<DialogOverlayProps, 'forceMount'>
 </script>
 
 <script setup lang="ts">

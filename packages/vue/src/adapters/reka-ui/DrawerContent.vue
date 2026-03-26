@@ -1,10 +1,7 @@
 <script lang="ts">
 import type { DialogContentProps, DialogContentEmits } from 'reka-ui'
 
-export interface DrawerContentProps extends Omit<
-  DialogContentProps,
-  'forceMount'
-> {}
+export type DrawerContentProps = Omit<DialogContentProps, 'forceMount'>
 
 export type DrawerContentEmits = DialogContentEmits
 </script>
