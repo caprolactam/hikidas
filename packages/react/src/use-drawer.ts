@@ -1,4 +1,13 @@
 import {
+  DrawerMachine,
+  Phase,
+  isOpenPhase,
+  DragController,
+  setupContentAnimation,
+  setupOverlayAnimation,
+  type DismissalDirection,
+} from '@hikidas/core'
+import {
   useContext,
   useMemo,
   useRef,
@@ -9,15 +18,6 @@ import {
   useSyncExternalStore,
 } from 'react'
 import type React from 'react'
-import {
-  DrawerMachine,
-  Phase,
-  isOpenPhase,
-  DragController,
-  setupContentAnimation,
-  setupOverlayAnimation,
-  type DismissalDirection,
-} from '@hikidas/core'
 import {
   type DrawerContextValue,
   useDrawerContext,

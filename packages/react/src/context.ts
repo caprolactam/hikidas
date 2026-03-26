@@ -1,10 +1,10 @@
-import { createContext, useContext } from 'react'
 import type {
   DrawerMachine,
   DrawerId,
   DrawerRegistry,
   DragController,
 } from '@hikidas/core'
+import { createContext, useContext } from 'react'
 
 /**
  * Connects a drawer's content element and drag controller into the nesting

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import Default from './Default.vue'
-import SnapPoints from './SnapPoints.vue'
 import Nested from './Nested.vue'
+import SnapPoints from './SnapPoints.vue'
 
 export default {
   title: 'Adapters/Reka UI',

@@ -1,10 +1,15 @@
-import { inject, type ComputedRef, type InjectionKey, type ShallowRef } from 'vue'
 import type {
   DrawerMachine,
   DrawerId,
   DrawerRegistry,
   DragController,
 } from '@hikidas/core'
+import {
+  inject,
+  type ComputedRef,
+  type InjectionKey,
+  type ShallowRef,
+} from 'vue'
 
 /**
  * Connects a drawer's content element and drag controller into the nesting

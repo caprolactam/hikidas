@@ -250,22 +250,29 @@ async function measureBuildSize(frameworkName: string, adapterName: string) {
 
     // Peer lib entry: imports directly from peer lib
     const peerLibEntryFile = `dist/.temp/entries/${adapterName}-peer-lib.js`
-    writeFileSync(
-      resolve(pkgDir, peerLibEntryFile),
-      adapter.peerLibEntryCode,
-    )
+    writeFileSync(resolve(pkgDir, peerLibEntryFile), adapter.peerLibEntryCode)
 
     const peerLibLabel = adapter.peerLibLabel
 
     console.log('⏳ (1/4) hikidas core (no NestingDrawer)...')
-    const coreSize = await viteBuild(pkgDir, coreEntryFile, `${adapterName}-core`, {
-      external: externalAll,
-    })
+    const coreSize = await viteBuild(
+      pkgDir,
+      coreEntryFile,
+      `${adapterName}-core`,
+      {
+        external: externalAll,
+      },
+    )
 
     console.log('⏳ (2/4) hikidas full (with NestingDrawer)...')
-    const fullSize = await viteBuild(pkgDir, fullEntryFile, `${adapterName}-full`, {
-      external: externalAll,
-    })
+    const fullSize = await viteBuild(
+      pkgDir,
+      fullEntryFile,
+      `${adapterName}-full`,
+      {
+        external: externalAll,
+      },
+    )
 
     console.log(`⏳ (3/4) ${peerLibLabel} alone...`)
     const peerLibSize = await viteBuild(
@@ -276,9 +283,14 @@ async function measureBuildSize(frameworkName: string, adapterName: string) {
     )
 
     console.log(`⏳ (4/4) hikidas + ${peerLibLabel}...`)
-    const totalSize = await viteBuild(pkgDir, fullEntryFile, `${adapterName}-total`, {
-      external: externalFrameworkOnly,
-    })
+    const totalSize = await viteBuild(
+      pkgDir,
+      fullEntryFile,
+      `${adapterName}-total`,
+      {
+        external: externalFrameworkOnly,
+      },
+    )
 
     const nestingRaw = fullSize.raw - coreSize.raw
     const nestingGzip = fullSize.gzip - coreSize.gzip
