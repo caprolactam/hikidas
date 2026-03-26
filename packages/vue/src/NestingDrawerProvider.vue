@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { provide, onBeforeUnmount } from 'vue'
 import {
   DrawerRegistry,
   DragRegistry,
   setupNestingAnimation,
 } from '@hikidas/core'
+import { provide, onBeforeUnmount } from 'vue'
 import { NestingKey, type NestingConnector } from './context'
 
 const drawerRegistry = new DrawerRegistry()
