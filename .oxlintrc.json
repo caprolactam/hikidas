@@ -1,20 +1,22 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "eslint",
-    "typescript",
-    "react",
-    "oxc",
-    "import",
-    "jsdoc",
-    "vitest"
-  ],
-  "rules": {
-    "react/exhaustive-deps": [
-      "error",
-      {
-        "additionalHooks": "useIsomorphicEffect"
+  "plugins": ["eslint", "typescript", "oxc", "import", "jsdoc", "vitest"],
+  "overrides": [
+    {
+      "files": ["packages/react/**/*.{ts,tsx}", "stories/react/**/*.{ts,tsx}"],
+      "plugins": ["react"],
+      "rules": {
+        "react/exhaustive-deps": [
+          "error",
+          {
+            "additionalHooks": "useIsomorphicEffect"
+          }
+        ]
       }
-    ]
-  }
+    },
+    {
+      "files": ["packages/vue/**/*.{ts,vue}", "stories/vue/**/*.{ts,vue}"],
+      "plugins": ["vue"]
+    }
+  ]
 }
