@@ -1,5 +1,5 @@
-import replace from '@rollup/plugin-replace'
 import vue from '@vitejs/plugin-vue'
+import { replacePlugin } from 'rolldown/plugins'
 import { build } from 'vite'
 import pkg from './package.json' with { type: 'json' }
 
@@ -40,10 +40,10 @@ async function buildAdapter(
           entryFileNames: outputFile.replace('./dist/', ''),
         },
         plugins: [
-          replace({
-            __DEV__: JSON.stringify(isDevelopment),
-            preventAssignment: true,
-          }),
+          replacePlugin(
+            { __DEV__: JSON.stringify(isDevelopment) },
+            { preventAssignment: true },
+          ),
         ],
       },
     },
