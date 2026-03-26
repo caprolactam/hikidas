@@ -34,7 +34,7 @@ async function buildAdapter(
       emptyOutDir: false,
       minify: false,
       sourcemap: true,
-      rollupOptions: {
+      rolldownOptions: {
         external,
         output: {
           entryFileNames: outputFile.replace('./dist/', ''),
