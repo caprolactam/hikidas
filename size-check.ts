@@ -7,8 +7,6 @@ import { build } from 'vite'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// ─── Framework / adapter configuration ───────────────────────────────
-
 const FRAMEWORKS: Record<string, FrameworkConfig> = {
   react: {
     peerFrameworkIds: ['react', 'react-dom'],
@@ -96,8 +94,6 @@ type FrameworkConfig = {
   adapters: Record<string, AdapterConfig>
 }
 
-// ─── External helpers ────────────────────────────────────────────────
-
 function makeExternalAll(pkg: PackageJson) {
   return (id: string) =>
     [
@@ -111,15 +107,6 @@ function makeExternalFrameworkOnly(peerFrameworkIds: string[]) {
     peerFrameworkIds.some((d: string) => id === d || id.startsWith(d + '/'))
 }
 
-// ─── Build & measure ─────────────────────────────────────────────────
-
-/**
- * @param {string} root
- * @param {string} entry - relative path from root
- * @param {string} outputName
- * @param {{ external: (id: string) => boolean }} options
- * @returns {Promise<{ raw: number, gzip: number }>}
- */
 async function viteBuild(
   root: string,
   entry: string,
@@ -140,8 +127,7 @@ async function viteBuild(
         },
       },
       outDir: 'dist/.temp',
-      // TODO: this will be replaced with oxc in Vite v8.
-      minify: 'terser',
+      minify: 'oxc',
       write: true,
       emptyOutDir: false,
       sourcemap: false,
@@ -151,10 +137,6 @@ async function viteBuild(
   return getFileSize(resolve(root, `dist/.temp/${outputName}.js`))
 }
 
-/**
- * @param {string} filePath
- * @returns {{ raw: number, gzip: number }}
- */
 function getFileSize(filePath: string) {
   const content = readFileSync(filePath, 'utf-8')
   const raw = Buffer.byteLength(content, 'utf-8')
@@ -162,12 +144,6 @@ function getFileSize(filePath: string) {
   return { raw, gzip }
 }
 
-// ─── Formatting ──────────────────────────────────────────────────────
-
-/**
- * @param {number} bytes
- * @returns {string}
- */
 function formatBytes(bytes: number) {
   if (bytes === 0) return '0 B'
   const k = 1024
@@ -176,19 +152,11 @@ function formatBytes(bytes: number) {
   return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
 }
 
-/**
- * @param {number} bytes
- * @returns {string}
- */
 function formatDiff(bytes: number) {
   const sign = bytes >= 0 ? '+' : '-'
   return `${sign}${formatBytes(Math.abs(bytes))}`
 }
 
-/**
- * @param {string} title
- * @param {[string, string, string][]} rows
- */
 function printTable(title: string, rows: [string, string, string][]) {
   const C1 = 31
   const C2 = 12
@@ -210,12 +178,6 @@ function printTable(title: string, rows: [string, string, string][]) {
   console.log(sep('└', '┴', '┘', '─'))
 }
 
-// ─── Main ────────────────────────────────────────────────────────────
-
-/**
- * @param {string} frameworkName
- * @param {string} adapterName
- */
 async function measureBuildSize(frameworkName: string, adapterName: string) {
   const framework = FRAMEWORKS[frameworkName]
   const adapter = framework.adapters[adapterName]
@@ -338,8 +300,6 @@ async function measureBuildSize(frameworkName: string, adapterName: string) {
     rmSync(tempDir, { recursive: true })
   }
 }
-
-// ─── CLI ─────────────────────────────────────────────────────────────
 
 const frameworkName = process.argv[2]
 const adapterName = process.argv[3]
