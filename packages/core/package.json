@@ -32,7 +32,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "rimraf ./dist && rollup -c && tsc --project tsconfig.declarations.json",
+    "build": "rimraf ./dist && rolldown -c && tsc --project tsconfig.declarations.json",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
     "typecheck": "tsc --noEmit"
