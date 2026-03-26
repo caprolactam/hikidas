@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { NestingDrawerProvider, Drawer } from '../src/react/adapters/radix-ui'
 import {
+  NestingDrawerProvider,
+  Drawer,
   triggerClassName,
   Overlay,
   DummyHandle,

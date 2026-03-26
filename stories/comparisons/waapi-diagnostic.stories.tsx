@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { forwardRef, useRef, useState, useLayoutEffect } from 'react'
-import { spring } from '../../src/core/animation/spring'
+import { spring } from '../../packages/core/src/animation/spring'
 import { Track, TRAVEL, BOX_SIZE } from './components/common'
 
 export default {

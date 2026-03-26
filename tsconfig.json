@@ -14,8 +14,13 @@
     "noPropertyAccessFromIndexSignature": true,
     "noFallthroughCasesInSwitch": true,
     "allowUnreachableCode": false,
-    "allowUnusedLabels": false
+    "allowUnusedLabels": false,
+    "paths": {
+      "@hikidas/core": ["./packages/core/src/index.ts"],
+      "@hikidas/react/*": ["./packages/react/src/adapters/*"],
+      "@hikidas/vue/*": ["./packages/vue/src/adapters/*"]
+    }
   },
-  "include": ["src", "stories"],
+  "include": ["packages/core/src", "packages/react/src", "packages/vue/src", "stories"],
   "exclude": ["node_modules", "dist"]
 }

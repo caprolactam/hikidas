@@ -11,15 +11,11 @@ export default defineConfig({
     // src/global.d.ts
     __DEV__: true,
   },
+  optimizeDeps: {
+    include: ['motion', '@react-spring/web'],
+  },
   test: {
     projects: [
-      {
-        extends: true,
-        test: {
-          name: 'core',
-          include: ['src/core/**/*.test.{ts,tsx}'],
-        },
-      },
       {
         extends: true,
         plugins: [
@@ -32,7 +28,7 @@ export default defineConfig({
           browser: {
             enabled: true,
             headless: true,
-            provider: playwright({}),
+            provider: playwright(),
             instances: [{ browser: 'chromium' }],
           },
           setupFiles: ['./.storybook/vitest.setup.ts'],

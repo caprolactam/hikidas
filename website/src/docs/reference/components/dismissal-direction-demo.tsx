@@ -1,4 +1,4 @@
-import { Drawer } from 'hikidas/radix-ui'
+import { Drawer } from '@hikidas/react/radix-ui'
 import { useState } from 'react'
 
 type Direction = 'up' | 'down' | 'left' | 'right'

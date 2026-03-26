@@ -19,14 +19,14 @@ Build your first drawer in a few minutes. This page shows the minimum setup from
 
 Hikidas wraps existing UI libraries to provide drawer functionality. Install both Hikidas and your chosen UI library. Note that the underlying UI library must be installed separately.
 
-<Code lang='bash' code={`npm install hikidas radix-ui`} />
+<Code lang='bash' code={`npm install @hikidas/react radix-ui`} />
 
 ## 2. Import the Parts
 
 Import the Drawer component from your chosen UI library adapter. All components follow a composable pattern.
 
 ```jsx filename=drawer.jsx
-import { Drawer } from 'hikidas/radix-ui'
+import { Drawer } from '@hikidas/react/radix-ui'
 import React from 'react'
 
 export function DrawerDemo() {
@@ -50,7 +50,7 @@ export function DrawerDemo() {
 Use your own styles. Hikidas is headless, so you control the look and layout.
 
 ```jsx filename=drawer.jsx add=3,8
-import { Drawer } from 'hikidas/radix-ui'
+import { Drawer } from '@hikidas/react/radix-ui'
 import React from 'react'
 import './drawer.css'
 

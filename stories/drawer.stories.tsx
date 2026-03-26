@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { Drawer } from '../src/react/adapters/radix-ui'
 import {
+  Drawer,
   Root,
   Trigger,
   triggerClassName,
