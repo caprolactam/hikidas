@@ -3,12 +3,18 @@ import vue from '@vitejs/plugin-vue'
 import { build } from 'vite'
 import pkg from './package.json' with { type: 'json' }
 
-const external = (id) =>
+const adapters = ['reka-ui'] as const
+type Adapter = (typeof adapters)[number]
+
+const external = (id: string) =>
   Object.keys(pkg.peerDependencies || {}).some((d) => id.startsWith(d))
 
-async function buildAdapter(adapterName, env) {
+async function buildAdapter(
+  adapterName: Adapter,
+  env: 'development' | 'production',
+) {
   const isDevelopment = env === 'development'
-  const exportPath = `./${adapterName}`
+  const exportPath = `./${adapterName}` as const
   const outputFile = isDevelopment
     ? pkg.exports[exportPath].development
     : pkg.exports[exportPath].production
@@ -42,7 +48,6 @@ async function buildAdapter(adapterName, env) {
   })
 }
 
-const adapters = ['reka-ui']
 for (const adapter of adapters) {
   await buildAdapter(adapter, 'development')
   await buildAdapter(adapter, 'production')

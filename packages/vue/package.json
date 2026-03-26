@@ -31,7 +31,7 @@
     }
   },
   "scripts": {
-    "build": "rimraf ./dist && node build.js && vue-tsc --project tsconfig.declarations.json",
+    "build": "rimraf ./dist && tsx build.ts && vue-tsc --project tsconfig.declarations.json",
     "typecheck": "vue-tsc --noEmit"
   },
   "devDependencies": {
