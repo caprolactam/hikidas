@@ -1,5 +1,15 @@
 {
   "private": true,
+  "description": "Headless drawer behavior for React and Vue, with adapters for popular UI libraries.",
+  "homepage": "https://github.com/caprolactam/hikidas#readme",
+  "bugs": {
+    "url": "https://github.com/caprolactam/hikidas/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/caprolactam/hikidas.git"
+  },
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
@@ -62,6 +72,9 @@
     "vitest": "^4.1.1",
     "vue": "^3.5.31",
     "vue-tsc": "^3.2.6"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "packageManager": "pnpm@10.33.0"
 }
