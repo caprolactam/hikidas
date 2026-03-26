@@ -1,0 +1,52 @@
+{
+  "name": "@hikidas/vue",
+  "version": "0.1.0",
+  "description": "Drawer component for Vue with support for reka-ui.",
+  "keywords": [
+    "accessible",
+    "animation",
+    "dialog",
+    "drawer",
+    "reka-ui",
+    "vue"
+  ],
+  "license": "MIT",
+  "author": "caprolactam <caprolactam113@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/caprolactam/hikidas.git"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./reka-ui": {
+      "types": "./dist/types/adapters/reka-ui/index.d.ts",
+      "development": "./dist/reka-ui/index.dev.js",
+      "production": "./dist/reka-ui/index.prod.js",
+      "default": "./dist/reka-ui/index.prod.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "rimraf ./dist && tsx build.ts && vue-tsc --project tsconfig.declarations.json",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@hikidas/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "reka-ui": "^2.0.0",
+    "vue": "^3.5.0"
+  },
+  "peerDependenciesMeta": {
+    "reka-ui": {
+      "optional": true
+    }
+  }
+}
