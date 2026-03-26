@@ -6,7 +6,10 @@ import banner from 'rollup-plugin-banner2'
 import pkg from './package.json' with { type: 'json' }
 
 const external = (id) =>
-  Object.keys(pkg.peerDependencies || {}).some((d) => id.startsWith(d))
+  [
+    ...Object.keys(pkg.dependencies || {}),
+    ...Object.keys(pkg.peerDependencies || {}),
+  ].some((d) => id === d || id.startsWith(d + '/'))
 
 function createAdapterConfig(adapterName, env) {
   const isDevelopment = env === 'development'

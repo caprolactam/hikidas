@@ -44,11 +44,14 @@
       "default": "./dist/headlessui/index.prod.js"
     }
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "rimraf ./dist && rollup -c && tsc --project tsconfig.declarations.json",
     "typecheck": "tsc --noEmit"
   },
-  "devDependencies": {
+  "dependencies": {
     "@hikidas/core": "workspace:*"
   },
   "peerDependencies": {

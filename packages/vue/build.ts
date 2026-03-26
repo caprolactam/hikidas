@@ -7,7 +7,10 @@ const adapters = ['reka-ui'] as const
 type Adapter = (typeof adapters)[number]
 
 const external = (id: string) =>
-  Object.keys(pkg.peerDependencies || {}).some((d) => id.startsWith(d))
+  [
+    ...Object.keys(pkg.dependencies || {}),
+    ...Object.keys(pkg.peerDependencies || {}),
+  ].some((d) => id === d || id.startsWith(d + '/'))
 
 async function buildAdapter(
   adapterName: Adapter,

@@ -166,29 +166,27 @@ importers:
       '@headlessui/react':
         specifier: ^2.2.0
         version: 2.2.9(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@hikidas/core':
+        specifier: workspace:*
+        version: link:../core
       radix-ui:
         specifier: ^1.4.3
         version: 1.4.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react:
         specifier: ^19.0.0
         version: 19.2.4
-    devDependencies:
-      '@hikidas/core':
-        specifier: workspace:*
-        version: link:../core
 
   packages/vue:
     dependencies:
+      '@hikidas/core':
+        specifier: workspace:*
+        version: link:../core
       reka-ui:
         specifier: ^2.0.0
         version: 2.9.0(vue@3.5.30(typescript@5.9.3))
       vue:
         specifier: ^3.5.0
         version: 3.5.30(typescript@5.9.3)
-    devDependencies:
-      '@hikidas/core':
-        specifier: workspace:*
-        version: link:../core
 
   website:
     dependencies:

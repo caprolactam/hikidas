@@ -1,19 +1,38 @@
 {
   "name": "@hikidas/core",
   "version": "0.1.0",
-  "private": true,
+  "description": "Core animation and state management engine for hikidas drawer components.",
+  "keywords": [
+    "animation",
+    "drawer",
+    "state-machine"
+  ],
   "license": "MIT",
   "author": "caprolactam <caprolactam113@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/caprolactam/hikidas.git",
+    "directory": "packages/core"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
   "sideEffects": false,
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/types/index.d.ts",
+      "development": "./dist/index.dev.js",
+      "production": "./dist/index.prod.js",
+      "default": "./dist/index.prod.js"
     }
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "rimraf ./dist && tsc --project tsconfig.build.json",
+    "build": "rimraf ./dist && rollup -c && tsc --project tsconfig.declarations.json",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
     "typecheck": "tsc --noEmit"
