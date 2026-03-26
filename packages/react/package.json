@@ -46,8 +46,7 @@
   },
   "scripts": {
     "build": "rimraf ./dist && rollup -c && tsc --project tsconfig.declarations.json",
-    "typecheck": "tsc --noEmit",
-    "size-check": "node size-check.js"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@hikidas/core": "workspace:*"

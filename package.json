@@ -12,7 +12,8 @@
     "storybook:build": "storybook build",
     "storybook:deploy-build": "cross-env STORYBOOK_DEPLOY=1 pnpm storybook:build && cross-env STORYBOOK_VUE=1 pnpm storybook:build -o storybook-static/vue",
     "storybook:preview": "vite preview --outDir storybook-static",
-    "e2e": "npx playwright test"
+    "e2e": "npx playwright test",
+    "size-check": "tsx size-check.ts"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-pure-annotations": "^7.27.1",
