@@ -1,7 +1,6 @@
 import { getBabelOutputPlugin } from '@rollup/plugin-babel'
-import replace from '@rollup/plugin-replace'
 import type { RolldownOptions } from 'rolldown'
-import banner from 'rollup-plugin-banner2'
+import { replacePlugin } from 'rolldown/plugins'
 import pkg from './package.json' with { type: 'json' }
 
 const external = (id: string) =>
@@ -29,16 +28,16 @@ function createAdapterConfig(
       file: outputFile,
       format: 'esm',
       sourcemap: true,
+      banner: '"use client";\n',
     },
     plugins: [
-      replace({
-        __DEV__: JSON.stringify(isDevelopment),
-        preventAssignment: true,
-      }),
+      replacePlugin(
+        { __DEV__: JSON.stringify(isDevelopment) },
+        { preventAssignment: true },
+      ),
       getBabelOutputPlugin({
         plugins: ['@babel/plugin-transform-react-pure-annotations'],
       }),
-      banner(() => '"use client";\n'),
     ],
     external,
   } satisfies RolldownOptions

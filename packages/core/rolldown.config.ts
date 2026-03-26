@@ -1,5 +1,5 @@
-import replace from '@rollup/plugin-replace'
 import type { RolldownOptions } from 'rolldown'
+import { replacePlugin } from 'rolldown/plugins'
 import pkg from './package.json' with { type: 'json' }
 
 function createConfig(env: 'development' | 'production'): RolldownOptions {
@@ -16,10 +16,10 @@ function createConfig(env: 'development' | 'production'): RolldownOptions {
       sourcemap: true,
     },
     plugins: [
-      replace({
-        __DEV__: JSON.stringify(isDevelopment),
-        preventAssignment: true,
-      }),
+      replacePlugin(
+        { __DEV__: JSON.stringify(isDevelopment) },
+        { preventAssignment: true },
+      ),
     ],
   } satisfies RolldownOptions
 }
