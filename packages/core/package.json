@@ -7,6 +7,10 @@
     "drawer",
     "state-machine"
   ],
+  "homepage": "https://github.com/caprolactam/hikidas/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/caprolactam/hikidas/issues"
+  },
   "license": "MIT",
   "author": "caprolactam <caprolactam113@gmail.com>",
   "repository": {
