@@ -1,0 +1,1 @@
+import{c as e,g as t}from"./theming-DAcEgvoj.js";e();export{t as color};
