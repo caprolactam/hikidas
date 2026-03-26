@@ -36,7 +36,7 @@ const config: StorybookConfig = {
     refs: {
       vue: {
         title: 'Vue',
-        url: '/vue',
+        url: '/hikidas/vue',
       },
     },
   }),
