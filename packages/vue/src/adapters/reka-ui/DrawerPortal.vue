@@ -1,7 +1,10 @@
 <script lang="ts">
 import type { DialogPortalProps } from 'reka-ui'
 
-export interface DrawerPortalProps extends DialogPortalProps {}
+export interface DrawerPortalProps extends Omit<
+  DialogPortalProps,
+  'disabled' | 'forceMount'
+> {}
 </script>
 
 <script setup lang="ts">

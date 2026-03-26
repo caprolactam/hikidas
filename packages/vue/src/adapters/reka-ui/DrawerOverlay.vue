@@ -26,5 +26,7 @@ useDrawerOverlay(currentElement)
     v-bind="{ ...$attrs, ...$props }"
     :force-mount="true"
     :ref="forwardRef"
-  />
+  >
+    <slot />
+  </DialogOverlay>
 </template>
