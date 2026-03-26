@@ -11,6 +11,9 @@ export default defineConfig({
     // src/global.d.ts
     __DEV__: true,
   },
+  optimizeDeps: {
+    include: ['motion', '@react-spring/web'],
+  },
   test: {
     projects: [
       {
