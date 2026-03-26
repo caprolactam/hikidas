@@ -94,10 +94,12 @@ type FrameworkConfig = {
   adapters: Record<string, AdapterConfig>
 }
 
-function makeExternalAll(pkg: PackageJson) {
+function makeExternalAllExceptCore(pkg: PackageJson) {
   return (id: string) =>
     [
-      ...Object.keys(pkg.dependencies ?? {}),
+      ...Object.keys(pkg.dependencies ?? {}).filter(
+        (d) => d !== '@hikidas/core',
+      ),
       ...Object.keys(pkg.peerDependencies ?? {}),
     ].some((d) => id === d || id.startsWith(d + '/'))
 }
@@ -120,7 +122,7 @@ async function viteBuild(
         entry: resolve(root, entry),
         formats: ['es'],
       },
-      rollupOptions: {
+      rolldownOptions: {
         external,
         output: {
           entryFileNames: `${outputName}.js`,
@@ -184,7 +186,7 @@ async function measureBuildSize(frameworkName: string, adapterName: string) {
   const pkgDir = resolve(__dirname, `packages/${frameworkName}`)
   const pkg = JSON.parse(readFileSync(resolve(pkgDir, 'package.json'), 'utf-8'))
 
-  const externalAll = makeExternalAll(pkg)
+  const externalAllExceptCore = makeExternalAllExceptCore(pkg)
   const externalFrameworkOnly = makeExternalFrameworkOnly(
     framework.peerFrameworkIds,
   )
@@ -222,7 +224,7 @@ async function measureBuildSize(frameworkName: string, adapterName: string) {
       coreEntryFile,
       `${adapterName}-core`,
       {
-        external: externalAll,
+        external: externalAllExceptCore,
       },
     )
 
@@ -232,7 +234,7 @@ async function measureBuildSize(frameworkName: string, adapterName: string) {
       fullEntryFile,
       `${adapterName}-full`,
       {
-        external: externalAll,
+        external: externalAllExceptCore,
       },
     )
 
