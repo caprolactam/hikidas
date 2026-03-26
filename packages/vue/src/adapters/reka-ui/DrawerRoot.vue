@@ -9,8 +9,8 @@ export type { DrawerRootEmit }
 </script>
 
 <script setup lang="ts">
-import { watch } from 'vue'
 import { DialogRoot } from 'reka-ui'
+import { watch } from 'vue'
 import { useDrawerRoot } from '../../composables'
 
 const props = withDefaults(defineProps<DrawerRootProps>(), {
