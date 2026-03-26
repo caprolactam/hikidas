@@ -39,6 +39,7 @@
     "build": "rimraf ./dist && rolldown -c && tsc --project tsconfig.declarations.json",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
   }
 }

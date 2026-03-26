@@ -54,7 +54,8 @@
   },
   "scripts": {
     "build": "rimraf ./dist && rolldown -c && tsc --project tsconfig.declarations.json",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
     "@hikidas/core": "workspace:*"
