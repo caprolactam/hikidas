@@ -1,8 +1,8 @@
 import replace from '@rollup/plugin-replace'
-import typescript from '@rollup/plugin-typescript'
+import type { RolldownOptions } from 'rolldown'
 import pkg from './package.json' with { type: 'json' }
 
-function createConfig(env) {
+function createConfig(env: 'development' | 'production'): RolldownOptions {
   const isDevelopment = env === 'development'
   const outputFile = isDevelopment
     ? pkg.exports['.'].development
@@ -20,12 +20,11 @@ function createConfig(env) {
         __DEV__: JSON.stringify(isDevelopment),
         preventAssignment: true,
       }),
-      typescript({
-        tsconfig: './tsconfig.build.json',
-      }),
     ],
-  }
+  } satisfies RolldownOptions
 }
 
-/** @type { import('rollup').RollupOptions[] } */
-export default [createConfig('development'), createConfig('production')]
+export default [
+  createConfig('development'),
+  createConfig('production'),
+] satisfies RolldownOptions[]

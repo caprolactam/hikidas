@@ -1,19 +1,24 @@
 import { getBabelOutputPlugin } from '@rollup/plugin-babel'
-import resolve from '@rollup/plugin-node-resolve'
 import replace from '@rollup/plugin-replace'
-import typescript from '@rollup/plugin-typescript'
+import type { RolldownOptions } from 'rolldown'
 import banner from 'rollup-plugin-banner2'
 import pkg from './package.json' with { type: 'json' }
 
-const external = (id) =>
+const external = (id: string) =>
   [
     ...Object.keys(pkg.dependencies || {}),
     ...Object.keys(pkg.peerDependencies || {}),
   ].some((d) => id === d || id.startsWith(d + '/'))
 
-function createAdapterConfig(adapterName, env) {
+const adapters = ['base-ui', 'radix-ui', 'headlessui'] as const
+type Adapter = (typeof adapters)[number]
+
+function createAdapterConfig(
+  adapterName: Adapter,
+  env: 'development' | 'production',
+): RolldownOptions {
   const isDevelopment = env === 'development'
-  const exportPath = `./${adapterName}`
+  const exportPath = `./${adapterName}` as const
   const outputFile = isDevelopment
     ? pkg.exports[exportPath].development
     : pkg.exports[exportPath].production
@@ -30,21 +35,16 @@ function createAdapterConfig(adapterName, env) {
         __DEV__: JSON.stringify(isDevelopment),
         preventAssignment: true,
       }),
-      resolve(),
-      typescript({
-        tsconfig: './tsconfig.build.json',
-      }),
       getBabelOutputPlugin({
         plugins: ['@babel/plugin-transform-react-pure-annotations'],
       }),
       banner(() => '"use client";\n'),
     ],
     external,
-  }
+  } satisfies RolldownOptions
 }
 
-/** @type { import('rollup').RollupOptions[] } */
-export default ['base-ui', 'radix-ui', 'headlessui'].flatMap((adapterName) => [
+export default adapters.flatMap((adapterName) => [
   createAdapterConfig(adapterName, 'development'),
   createAdapterConfig(adapterName, 'production'),
-])
+]) satisfies RolldownOptions[]
