@@ -12,6 +12,7 @@ import {
   shallowRef,
   watch,
   onBeforeUnmount,
+  onUnmounted,
   provide,
   inject,
   useId,
@@ -136,7 +137,7 @@ export function useDrawerRoot(props: DrawerRootAPI, emit: DrawerRootEmit) {
       desiredOpen.value = true
     }
   })
-  onBeforeUnmount(unsubPhase)
+  onUnmounted(unsubPhase)
 
   // ── Bidirectional sync: desiredSnapPointIndex ↔ snapMode.activeIndex ────────────
   watch(
@@ -153,16 +154,17 @@ export function useDrawerRoot(props: DrawerRootAPI, emit: DrawerRootEmit) {
       desiredSnapPointIndex.value = nextSnapMode.activeIndex
     }
   })
-  onBeforeUnmount(unsubSnap)
+  onUnmounted(unsubSnap)
 
+  // use shallowRef for external state
+  // https://vuejs.org/guide/extras/reactivity-in-depth.html#integration-with-external-state-systems
   const phase = shallowRef(machine.snapshot.phase)
   const unsubPhaseTracking = machine.subscribePhaseChange((nextPhase) => {
     phase.value = nextPhase
   })
-  onBeforeUnmount(unsubPhaseTracking)
+  onUnmounted(unsubPhaseTracking)
 
   const isOpen = computed(() => isOpenPhase(phase.value))
-
   const handleIsOpenChange = (nextIsOpen: boolean) => {
     desiredOpen.value = nextIsOpen
   }
@@ -197,7 +199,6 @@ export function useDrawerOverlay(
   watch(
     elementRef,
     (el, _old, onCleanup) => {
-      console.log('Overlay element changed:', el)
       overlayRef.value = el ?? null
       if (!el) return
       const cleanup = setupOverlayAnimation({ machine, element: el })
