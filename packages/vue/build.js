@@ -1,6 +1,6 @@
-import { build } from 'vite'
-import vue from '@vitejs/plugin-vue'
 import replace from '@rollup/plugin-replace'
+import vue from '@vitejs/plugin-vue'
+import { build } from 'vite'
 import pkg from './package.json' with { type: 'json' }
 
 const external = (id) =>
@@ -23,6 +23,7 @@ async function buildAdapter(adapterName, env) {
       },
       outDir: 'dist',
       emptyOutDir: false,
+      minify: false,
       sourcemap: true,
       rollupOptions: {
         external,
