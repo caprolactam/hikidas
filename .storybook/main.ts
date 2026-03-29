@@ -1,8 +1,10 @@
+import { fileURLToPath } from 'node:url'
 import type { StorybookConfig } from '@storybook/react-vite'
 import tailwindcss from '@tailwindcss/vite'
 import { mergeConfig } from 'vite'
 
 const isVue = !!process.env.STORYBOOK_VUE
+const packagesDir = fileURLToPath(new URL('../packages', import.meta.url))
 
 const config: StorybookConfig = {
   stories: isVue
@@ -29,6 +31,22 @@ const config: StorybookConfig = {
       plugins,
       define: {
         __DEV__: true,
+      },
+      resolve: {
+        alias: [
+          {
+            find: /^@hikidas\/core$/,
+            replacement: `${packagesDir}/core/src/index.ts`,
+          },
+          {
+            find: /^@hikidas\/react\/(.+)$/,
+            replacement: `${packagesDir}/react/src/adapters/$1/index.ts`,
+          },
+          {
+            find: /^@hikidas\/vue\/(.+)$/,
+            replacement: `${packagesDir}/vue/src/adapters/$1/index.ts`,
+          },
+        ],
       },
     })
   },
