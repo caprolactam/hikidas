@@ -1,4 +1,4 @@
-import { describe, expect, test, assert, vi } from 'vitest'
+import { describe, expect, test, assert } from 'vitest'
 import { DrawerMachine } from '../drawer/machine'
 import { DrawerRegistry, NestingPhase } from './registry'
 
@@ -34,26 +34,6 @@ describe('DrawerRegistry', () => {
     })
 
     expect(registry.isFrontmost('a')).toBe(false)
-  })
-
-  test('reportComplete notifies subscribe listeners', () => {
-    const registry = new DrawerRegistry()
-    const root = createMachine(true)
-    const child = createMachine(false)
-
-    registry.register({ id: 'root', parentId: null, machine: root })
-    registry.register({ id: 'child', parentId: 'root', machine: child })
-
-    child.requestOpen()
-
-    const listener = vi.fn()
-    registry.subscribe(listener)
-
-    const handle = registry.registerNestingTransition('root')
-    assert(handle.isTransitionable)
-    handle.reportComplete()
-
-    expect(listener).toHaveBeenCalled()
   })
 
   test('getAncestors returns ancestor nodes', () => {

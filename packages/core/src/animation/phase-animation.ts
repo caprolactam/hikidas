@@ -44,21 +44,24 @@ type ResolveSpringConfig = (props: {
   direction: Direction
 }) => SpringAnimateConfig
 
-function setupPhaseAnimation(params: {
+function setupPhaseAnimation({
+  machine,
+  element,
+  getVariant,
+  resolveSpringConfig,
+}: {
   machine: DrawerMachine
   element: HTMLElement
   getVariant: GetVariant
   resolveSpringConfig: ResolveSpringConfig
 }): () => void {
-  const { machine, element, getVariant, resolveSpringConfig } = params
   const animate = initAnimate()
 
-  function run() {
-    const values = machine.registerTransitionPart()
-    if (!values.isTransitionable) return
+  function runAnimation(): void {
+    const handle = machine.joinTransition()
+    if (!handle) return
 
-    const { phase: transitionPhase, reportComplete, reportCancel } = values
-
+    const { phase, done } = handle
     const {
       config: { direction },
       transitionHint,
@@ -70,23 +73,24 @@ function setupPhaseAnimation(params: {
         element,
         (prevStyle) =>
           getVariant({
-            phase: transitionPhase,
+            phase,
             direction,
             prevStyle,
             snapMode,
           }),
         resolveSpringConfig({
-          phase: transitionPhase,
+          phase,
           transitionHint,
           direction,
         }),
       )
-      .then(reportComplete)
-      .catch(reportCancel)
+      .finally(done)
   }
 
-  run()
-  const unsubscribe = machine.subscribePhaseChange(run)
+  // Pull: if already in a transitionable phase at mount time, join immediately
+  runAnimation()
+  // Push: subscribe for future phase changes
+  const unsubscribe = machine.subscribePhaseChange(runAnimation)
 
   return () => {
     unsubscribe()

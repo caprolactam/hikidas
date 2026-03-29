@@ -4,6 +4,7 @@ import {
   type Phase,
   type TransitionablePhase,
   type EndDragPayload,
+  isTransitionablePhase,
 } from './phase'
 import {
   drawerReducer,
@@ -23,23 +24,24 @@ import {
   ACTION_REQUEST_SNAP_POINT_CHANGE,
 } from './reducer'
 import { type SnapMode } from './snap-mode'
-import { TransitionCoordinator } from './transition-coordinator'
 
 interface DrawerSnapshot extends DrawerState {}
 
 type PhaseChangeListener = (nextPhase: Phase) => void
 type SnapModeChangeListener = (nextSnapMode: SnapMode) => void
 
+interface TransitionHandle {
+  readonly phase: TransitionablePhase
+  done(): void
+}
+
 /** @internal */
 export class DrawerMachine {
   #reducerState: DrawerState
   #phaseChangeListeners = new Set<PhaseChangeListener>()
   #snapModeChangeListeners = new Set<SnapModeChangeListener>()
-  #transitionCoordinator = new TransitionCoordinator({
-    onTransitionComplete: (phase) => {
-      this.#transitionComplete(phase)
-    },
-  })
+  #transitionId = 0
+  #pendingJoinCount = 0
 
   constructor(
     initialOpen: boolean,
@@ -119,8 +121,36 @@ export class DrawerMachine {
     })
   }
 
-  registerTransitionPart = () =>
-    this.#transitionCoordinator.register(this.snapshot.phase)
+  /**
+   * Join the current transition. Returns a handle if the machine is in a
+   * transitionable phase, or null otherwise. The caller must invoke
+   * `handle.done()` when its animation completes. Once all participants
+   * have called `done()`, the machine dispatches ACTION_TRANSITION_COMPLETE.
+   */
+  joinTransition(): TransitionHandle | null {
+    const { phase } = this.#reducerState
+    if (!isTransitionablePhase(phase)) return null
+
+    const id = this.#transitionId
+    this.#pendingJoinCount++
+
+    let settled = false
+    return {
+      phase,
+      done: () => {
+        if (settled) return
+        settled = true
+        if (this.#transitionId !== id) return
+        this.#pendingJoinCount--
+        if (this.#pendingJoinCount === 0) {
+          this.#dispatch({
+            type: ACTION_TRANSITION_COMPLETE,
+            endedPhase: phase,
+          })
+        }
+      },
+    }
+  }
 
   subscribePhaseChange = (listener: PhaseChangeListener): (() => void) => {
     this.#phaseChangeListeners.add(listener)
@@ -147,6 +177,10 @@ export class DrawerMachine {
     this.#reducerState = nextState
 
     if (nextState.phase !== prevPhase) {
+      if (isTransitionablePhase(nextState.phase)) {
+        this.#startTransition()
+      }
+
       for (const listener of this.#phaseChangeListeners) {
         listener(nextState.phase)
       }
@@ -159,8 +193,9 @@ export class DrawerMachine {
     }
   }
 
-  #transitionComplete(endedPhase: TransitionablePhase): void {
-    this.#dispatch({ type: ACTION_TRANSITION_COMPLETE, endedPhase })
+  #startTransition(): void {
+    ++this.#transitionId
+    this.#pendingJoinCount = 0
   }
 
   static #normalizeConfig(input: DrawerConfigInput): DrawerConfig {
