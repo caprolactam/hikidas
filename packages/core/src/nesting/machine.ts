@@ -1,3 +1,4 @@
+import { createTransitionBarrier } from '../transition-barrier'
 import {
   nestingReducer,
   nestingReducerInit,
@@ -35,8 +36,7 @@ function isTransitionableNestingState(
 export class NestingMachine {
   #state: NestingState
   #listeners = new Set<(phase: NestingPhase) => void>()
-  #transitionId = 0
-  #pendingJoinCount = 0
+  #transitionBarrier = createTransitionBarrier()
 
   constructor(initialDepth: number) {
     this.#state = nestingReducerInit(initialDepth)
@@ -54,23 +54,12 @@ export class NestingMachine {
   joinTransition(): NestingTransitionHandle | null {
     if (!isTransitionableNestingState(this.#state)) return null
 
-    const id = this.#transitionId
     const state = this.#state
-    this.#pendingJoinCount++
+    const { done } = this.#transitionBarrier.join(() => {
+      this.#dispatch({ type: NESTING_TRANSITION_COMPLETE })
+    })
 
-    let settled = false
-    return {
-      state,
-      done: () => {
-        if (settled) return
-        settled = true
-        if (this.#transitionId !== id) return
-        this.#pendingJoinCount--
-        if (this.#pendingJoinCount === 0) {
-          this.#dispatch({ type: NESTING_TRANSITION_COMPLETE })
-        }
-      },
-    }
+    return { state, done }
   }
 
   subscribe = (listener: (phase: NestingPhase) => void): (() => void) => {
@@ -117,7 +106,6 @@ export class NestingMachine {
   }
 
   #startTransition(): void {
-    ++this.#transitionId
-    this.#pendingJoinCount = 0
+    this.#transitionBarrier.reset()
   }
 }
