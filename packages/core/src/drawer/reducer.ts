@@ -201,10 +201,8 @@ export function drawerReducer(
         }
       return state
 
-    default: {
-      const _exhaustiveCheck: never = phase
-      return _exhaustiveCheck
-    }
+    default:
+      return phase satisfies never
   }
 }
 

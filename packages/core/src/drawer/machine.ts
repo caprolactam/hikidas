@@ -25,8 +25,6 @@ import {
 } from './reducer'
 import { type SnapMode } from './snap-mode'
 
-interface DrawerSnapshot extends DrawerState {}
-
 type PhaseChangeListener = (nextPhase: Phase) => void
 type SnapModeChangeListener = (nextSnapMode: SnapMode) => void
 
@@ -37,7 +35,7 @@ interface TransitionHandle {
 
 /** @internal */
 export class DrawerMachine {
-  #reducerState: DrawerState
+  #state: DrawerState
   #phaseChangeListeners = new Set<PhaseChangeListener>()
   #snapModeChangeListeners = new Set<SnapModeChangeListener>()
   #transitionId = 0
@@ -51,15 +49,15 @@ export class DrawerMachine {
     },
     initialConfig: DrawerConfigInput,
   ) {
-    this.#reducerState = drawerReducerInit({
+    this.#state = drawerReducerInit({
       initialOpen,
       initialSnapPoints,
       config: DrawerMachine.#normalizeConfig(initialConfig),
     })
   }
 
-  get snapshot(): DrawerSnapshot {
-    return this.#reducerState
+  get snapshot() {
+    return this.#state
   }
 
   requestOpen(): void {
@@ -74,9 +72,9 @@ export class DrawerMachine {
    * Returns true if the transition succeeded.
    */
   startTracking(): boolean {
-    const prev = this.#reducerState.phase
+    const prev = this.#state.phase
     this.#dispatch({ type: ACTION_START_TRACKING })
-    return this.#reducerState.phase !== prev
+    return this.#state.phase !== prev
   }
 
   cancelTracking(): void {
@@ -90,9 +88,9 @@ export class DrawerMachine {
     draggedDistance: { x: number; y: number }
     dragStartMinDistancePx: number
   }): boolean {
-    const prev = this.#reducerState.phase
+    const prev = this.#state.phase
     this.#dispatch({ type: ACTION_START_DRAG, payload })
-    return this.#reducerState.phase !== prev
+    return this.#state.phase !== prev
   }
 
   endDrag(payload: EndDragPayload): void {
@@ -128,7 +126,7 @@ export class DrawerMachine {
    * have called `done()`, the machine dispatches ACTION_TRANSITION_COMPLETE.
    */
   joinTransition(): TransitionHandle | null {
-    const { phase } = this.#reducerState
+    const { phase } = this.#state
     if (!isTransitionablePhase(phase)) return null
 
     const id = this.#transitionId
@@ -169,12 +167,12 @@ export class DrawerMachine {
   }
 
   #dispatch(event: DrawerEvent): void {
-    const prevPhase = this.#reducerState.phase
-    const prevSnapMode = this.#reducerState.snapMode
-    const nextState = drawerReducer(this.#reducerState, event)
-    if (nextState === this.#reducerState) return
+    const prevPhase = this.#state.phase
+    const prevSnapMode = this.#state.snapMode
+    const nextState = drawerReducer(this.#state, event)
+    if (nextState === this.#state) return
 
-    this.#reducerState = nextState
+    this.#state = nextState
 
     if (nextState.phase !== prevPhase) {
       if (isTransitionablePhase(nextState.phase)) {
