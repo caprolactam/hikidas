@@ -1,19 +1,9 @@
 import type { DrawerMachine } from '../drawer/machine'
 import { Phase, isOpenPhase } from '../drawer/phase'
-import { NestingMachine } from './machine'
+import { NestingMachine, type NestingTransitionHandle } from './machine'
 import { type NestingState, NestingPhase, getNestingDepth } from './reducer'
 
 export { NestingPhase, type NestingState, getNestingDepth }
-
-interface ActiveNestingTransitionResult {
-  isTransitionable: true
-  reportComplete: () => void
-  reportCancel: () => void
-}
-
-interface InactiveNestingTransitionResult {
-  isTransitionable: false
-}
 
 /** @internal */
 export type DrawerId = string
@@ -30,6 +20,7 @@ interface DrawerNodeEntry {
   readonly machine: DrawerMachine
   readonly nestingMachine: NestingMachine
   readonly unsubscribePhase: () => void
+  readonly unsubscribeNesting: () => void
 }
 
 interface DrawerNodeView {
@@ -65,16 +56,23 @@ export class DrawerRegistry {
 
     const initialDepth = this.#computeNestingDepth(id)
 
+    const nestingMachine = new NestingMachine(initialDepth)
+
     const unsubPhase = machine.subscribePhaseChange(() => {
       this.#onPhaseChange(id)
+    })
+
+    const unsubNesting = nestingMachine.subscribe(() => {
+      this.#invalidate()
     })
 
     const entry: DrawerNodeEntry = {
       id,
       parentId,
       machine,
-      nestingMachine: new NestingMachine(initialDepth),
+      nestingMachine,
       unsubscribePhase: unsubPhase,
+      unsubscribeNesting: unsubNesting,
     }
     this.#entries.set(id, entry)
 
@@ -94,6 +92,7 @@ export class DrawerRegistry {
     if (!entry) return
 
     entry.unsubscribePhase()
+    entry.unsubscribeNesting()
     this.#entries.delete(id)
 
     // Recalculate nesting depth for ancestors — removing a node may reduce
@@ -148,25 +147,19 @@ export class DrawerRegistry {
     return entry.id === id
   }
 
-  registerNestingTransition(
-    id: DrawerId,
-  ): ActiveNestingTransitionResult | InactiveNestingTransitionResult {
+  joinNestingTransition(id: DrawerId): NestingTransitionHandle | null {
     const entry = this.#entries.get(id)
-    if (!entry) return { isTransitionable: false }
+    if (!entry) return null
+    return entry.nestingMachine.joinTransition()
+  }
 
-    const handle = entry.nestingMachine.registerTransition()
-    if (!handle) return { isTransitionable: false }
-
-    return {
-      isTransitionable: true,
-      reportComplete: () => {
-        handle.reportComplete()
-        this.#invalidate()
-      },
-      reportCancel: () => {
-        handle.reportCancel()
-      },
-    }
+  subscribeNestingChange(
+    id: DrawerId,
+    listener: (phase: NestingPhase) => void,
+  ): () => void {
+    const entry = this.#entries.get(id)
+    if (!entry) return () => {}
+    return entry.nestingMachine.subscribe(listener)
   }
 
   /**

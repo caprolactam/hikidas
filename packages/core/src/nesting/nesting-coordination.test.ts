@@ -204,7 +204,7 @@ describe('nesting coordination', () => {
       expect(child.nestingDepth).toBe(1)
     })
 
-    test('completing scale animation commits the nesting depth', () => {
+    test('completing transition commits the nesting depth', () => {
       const { registry, machines } = buildNestingPair({
         root: true,
         child: false,
@@ -212,16 +212,17 @@ describe('nesting coordination', () => {
 
       machines.child.requestOpen()
 
-      const handle = registry.registerNestingTransition('root')
-      assert(handle.isTransitionable)
-      handle.reportComplete()
+      // Join as a participant and immediately report done
+      const handle = registry.joinNestingTransition('root')
+      assert(handle, 'should be in a transitionable nesting phase')
+      handle.done()
 
       const nesting = getNesting(registry, 'root')
       assert(nesting.phase === NestingPhase.Active)
       expect(nesting.nestingDepth).toBe(1)
     })
 
-    test('animation handle is invalidated when target changes mid-animation', () => {
+    test('stale transition is ignored when target changes mid-animation', () => {
       const { registry, machines } = buildNestingChain({
         root: true,
         child: false,
@@ -229,14 +230,16 @@ describe('nesting coordination', () => {
       })
 
       machines.child.requestOpen()
-      const firstHandle = registry.registerNestingTransition('root')
-      assert(firstHandle.isTransitionable)
+
+      // Join the first transition (targetDepth=1)
+      const handle1 = registry.joinNestingTransition('root')
+      assert(handle1, 'should be in a transitionable nesting phase')
 
       // Before first animation completes, grandchild opens → new target
       machines.grandchild.requestOpen()
 
-      // First handle's reportComplete should be ignored
-      firstHandle.reportComplete()
+      // First handle is now stale — calling done() is a no-op
+      handle1.done()
 
       const nesting = getNesting(registry, 'root')
       assert(nesting.phase === NestingPhase.Scaling)
@@ -244,7 +247,7 @@ describe('nesting coordination', () => {
       expect(nesting.targetDepth).toBe(2)
     })
 
-    test('new animation succeeds after previous handle is invalidated', () => {
+    test('new animation succeeds after previous is invalidated', () => {
       const { registry, machines } = buildNestingChain({
         root: true,
         child: false,
@@ -252,36 +255,24 @@ describe('nesting coordination', () => {
       })
 
       machines.child.requestOpen()
-      const firstHandle = registry.registerNestingTransition('root')
-      assert(firstHandle.isTransitionable)
 
+      // Join first transition
+      const handle1 = registry.joinNestingTransition('root')
+      assert(handle1)
+
+      // Target changes — first handle is invalidated
       machines.grandchild.requestOpen()
 
-      const secondHandle = registry.registerNestingTransition('root')
-      assert(secondHandle.isTransitionable)
-      secondHandle.reportComplete()
+      // Join second (current) transition
+      const handle2 = registry.joinNestingTransition('root')
+      assert(handle2)
+
+      // Complete second transition
+      handle2.done()
 
       const nesting = getNesting(registry, 'root')
       assert(nesting.phase === NestingPhase.Active)
       expect(nesting.nestingDepth).toBe(2)
-    })
-
-    test('cancelled animation does not commit nesting depth', () => {
-      const { registry, machines } = buildNestingPair({
-        root: true,
-        child: false,
-      })
-
-      machines.child.requestOpen()
-
-      const handle = registry.registerNestingTransition('root')
-      assert(handle.isTransitionable)
-      handle.reportCancel()
-
-      const nesting = getNesting(registry, 'root')
-      assert(nesting.phase === NestingPhase.Scaling)
-      expect(nesting.nestingDepth).toBe(0)
-      expect(nesting.targetDepth).toBe(1)
     })
 
     test('child closing mid-animation reverses the scale target', () => {

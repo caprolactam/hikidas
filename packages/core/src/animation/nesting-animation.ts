@@ -1,8 +1,4 @@
-import type {
-  DrawerId,
-  DrawerRegistry,
-  NestingState,
-} from '../nesting/registry'
+import type { DrawerId, DrawerRegistry } from '../nesting/registry'
 import { NestingPhase, getNestingDepth } from '../nesting/registry'
 import { scaleForDepth } from '../nesting/scale'
 import type { SpringAnimateConfig } from './animate'
@@ -26,17 +22,19 @@ const noop = () => {}
  *
  * @internal
  */
-export function setupNestingAnimation(params: {
+export function setupNestingAnimation({
+  registry,
+  drawerId,
+  element,
+}: {
   registry: DrawerRegistry
   drawerId: DrawerId
   element: HTMLElement
 }): () => void {
-  const { registry, drawerId, element } = params
   const drawer = registry.getNode(drawerId)
   if (!drawer) return noop
 
   const { nesting: initialNestingState } = drawer
-  let prevState: NestingState = initialNestingState
   const animate = initAnimate()
 
   // Apply initial nesting state without animation (e.g. defaultOpen on both parent and child)
@@ -45,21 +43,11 @@ export function setupNestingAnimation(params: {
     applyNestingStyles(element, initialDepth)
   }
 
-  const unsubscribe = registry.subscribe(() => {
-    const state = registry.getNode(drawerId)
-    if (!state) return
-    const nestingState = state.nesting
+  function runAnimation(): void {
+    const handle = registry.joinNestingTransition(drawerId)
+    if (!handle) return
 
-    // Only animate when nesting state actually changes (referential equality).
-    // The reducer returns the same object when nothing changed, but produces
-    // a new object when phase or target changes — including Scaling→Scaling
-    // with a different targetDepth.
-    if (nestingState === prevState) return
-
-    prevState = nestingState
-
-    const handle = registry.registerNestingTransition(drawerId)
-    if (!handle.isTransitionable) return
+    const { state: nestingState, done } = handle
 
     switch (nestingState.phase) {
       case NestingPhase.Scaling: {
@@ -80,12 +68,11 @@ export function setupNestingAnimation(params: {
             NESTING_SPRING_CONFIG,
           )
           .then(() => {
-            handle.reportComplete()
             if (targetDepth === 0) {
               clearNestingStyles(element)
             }
           })
-          .catch(handle.reportCancel)
+          .finally(done)
         break
       }
 
@@ -100,14 +87,18 @@ export function setupNestingAnimation(params: {
             }),
             NESTING_SPRING_CONFIG,
           )
-          .then(handle.reportComplete)
-          .catch(handle.reportCancel)
+          .finally(done)
         break
       }
       default:
-        break
+        nestingState satisfies never
     }
-  })
+  }
+
+  // Pull: if already in a transitionable nesting phase at mount time, join immediately.
+  runAnimation()
+  // Push: subscribe for future nesting state changes
+  const unsubscribe = registry.subscribeNestingChange(drawerId, runAnimation)
 
   return () => {
     unsubscribe()
