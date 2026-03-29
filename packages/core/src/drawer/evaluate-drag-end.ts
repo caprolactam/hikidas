@@ -45,10 +45,8 @@ export function evaluateDragEnd(
 ): DragEndEvaluation {
   const { velocityPxPerSec, dragDistanceRatio, drawerSize, isVelocityStale } =
     payload
-
   const rawVelocityRatio = drawerSize > 0 ? velocityPxPerSec / drawerSize : 0
   const velocityRatioPerSec = isVelocityStale ? 0 : rawVelocityRatio
-
   const { ratios } = normalizeSnapMode(snapMode)
   const currentRatio = getActiveSnapRatio(snapMode)
   const lowestRatio = getMinSnapRatio(snapMode)
@@ -78,9 +76,12 @@ function resolveTarget(
 ): DragTarget {
   const visualPositionRatio = currentRatio - dragDistanceRatio
   const isDismissable = !config.disableDragDismiss
+  const hasExceededVelocityLimit =
+    Math.abs(velocityRatioPerSec) >= VELOCITY_THRESHOLD
 
-  if (Math.abs(velocityRatioPerSec) >= VELOCITY_THRESHOLD) {
+  if (hasExceededVelocityLimit) {
     const isClosing = velocityRatioPerSec > 0
+
     if (isClosing) {
       // Dismiss direction: ceiling snap is the lowest snap ≥ visualPositionRatio.
       // This is the snap the drawer is "resting against" from above; the flick
@@ -89,12 +90,14 @@ function resolveTarget(
 
       if (base === 0 && isDismissable) {
         return { kind: 'close' }
+      } else {
+        return { kind: 'snap', index: Math.max(0, base - 1) }
       }
-      return { kind: 'snap', index: Math.max(0, base - 1) }
     } else {
       // Open direction: floor snap is the highest snap ≤ visualPositionRatio.
       // Move one step further toward open from there.
       const base = findSnapFloor(ratios, visualPositionRatio)
+
       return { kind: 'snap', index: Math.min(ratios.length - 1, base + 1) }
     }
   }
@@ -107,9 +110,9 @@ function resolveTarget(
     isDismissable
   ) {
     return { kind: 'close' }
+  } else {
+    return { kind: 'snap', index: nearestIndex }
   }
-
-  return { kind: 'snap', index: nearestIndex }
 }
 
 const FLICK_VELOCITY_THRESHOLD = 0.3
@@ -136,8 +139,7 @@ function buildResult(
         transitionHint: { kind: transitionKind, velocityPxPerSec },
       }
     default:
-      const _exhaustiveCheck: never = target
-      return _exhaustiveCheck
+      return target satisfies never
   }
 }
 
