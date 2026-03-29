@@ -1,3 +1,4 @@
+import { createTransitionBarrier } from '../transition-barrier'
 import { createDirection } from './direction'
 import {
   type DrawerConfig,
@@ -38,8 +39,7 @@ export class DrawerMachine {
   #state: DrawerState
   #phaseChangeListeners = new Set<PhaseChangeListener>()
   #snapModeChangeListeners = new Set<SnapModeChangeListener>()
-  #transitionId = 0
-  #pendingJoinCount = 0
+  #transitionBarrier = createTransitionBarrier()
 
   constructor(
     initialOpen: boolean,
@@ -129,25 +129,14 @@ export class DrawerMachine {
     const { phase } = this.#state
     if (!isTransitionablePhase(phase)) return null
 
-    const id = this.#transitionId
-    this.#pendingJoinCount++
+    const { done } = this.#transitionBarrier.join(() => {
+      this.#dispatch({
+        type: ACTION_TRANSITION_COMPLETE,
+        endedPhase: phase,
+      })
+    })
 
-    let settled = false
-    return {
-      phase,
-      done: () => {
-        if (settled) return
-        settled = true
-        if (this.#transitionId !== id) return
-        this.#pendingJoinCount--
-        if (this.#pendingJoinCount === 0) {
-          this.#dispatch({
-            type: ACTION_TRANSITION_COMPLETE,
-            endedPhase: phase,
-          })
-        }
-      },
-    }
+    return { phase, done }
   }
 
   subscribePhaseChange = (listener: PhaseChangeListener): (() => void) => {
@@ -192,8 +181,7 @@ export class DrawerMachine {
   }
 
   #startTransition(): void {
-    ++this.#transitionId
-    this.#pendingJoinCount = 0
+    this.#transitionBarrier.reset()
   }
 
   static #normalizeConfig(input: DrawerConfigInput): DrawerConfig {
